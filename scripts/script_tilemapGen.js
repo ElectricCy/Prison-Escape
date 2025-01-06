@@ -1,4 +1,3 @@
-
 class TileMapGenerator {
     constructor(params) {
         const requiredDeps = {
@@ -71,10 +70,14 @@ class TileMapGenerator {
             settings: this.settings,
             scene: window.WorldScene,
             pointSize: 1.5,
-            pointColor: 0xff0000,
-            lineColor: 0xffff00,
+            pointColor: '#ff0000',
+            lineColor: '#ffff00',
             lineWidth: 3,
-            maxConnectionDistance: 1.5
+            maxConnectionDistance: 1.5,
+            visualization: {
+                pointColor: 0xff0000,
+                lineColor: 0xffff00
+            }
         };
         try {
             tileMap.navMesh = new this.NavMesh(navMeshParams);

@@ -141,7 +141,6 @@ class TileMap {
             if (wallMesh) {
                 this.mapMesh.add(wallMesh);
                 this.wallsList.push(wall);
-                console.log(`Wall placed at tile (${placement.tile.x}, ${placement.tile.z}) on ${placement.edge} edge`);
             }
         });
     }
@@ -239,29 +238,43 @@ class TileMap {
     }
 
     placeObstacles() {
-        if (!this.settings.tilemap.obstacles || !Array.isArray(this.settings.tilemap.obstacles)) {
-            return;
-        }
+        this.dungeonGen = new DungeonGenerator();
+        this.dungeonGen.generate();
         this.obstaclesList = []; // Clear existing obstacles
-        this.settings.tilemap.obstacles.forEach(pos => {
-            const worldPos = this.gridToWorldPosition(pos.x, pos.z);
-            try {
-                const obstacle = new this.Obstacle({
-                    THREE: this.THREE,
-                    position: new this.THREE.Vector3(worldPos.x, this.height / 2 + 0.05, worldPos.z),
-                    settings: this.settings,
-                    scene: this.scene,
-                    physicsWorld: this.physicsWorld
-                });
-                if (obstacle.mesh) {
-                    this.mapMesh.add(obstacle.mesh);
-                    this.markTileOccupied(pos.x, pos.z);
-                    this.obstaclesList.push(obstacle);
+        let obstaclesPlaced = 0;
+        let placementAttempts = 0;
+        // Place obstacles based on dungeon walls
+        for (let x = 0; x < this.width; x++) {
+            for (let z = 0; z < this.height; z++) {
+                if (this.dungeonGen.map[x]?.[z] === 1) { // Wall tile
+                    placementAttempts++;
+                    const worldPos = this.gridToWorldPosition(x, z);
+                    try {
+                        const obstacle = new this.Obstacle({
+                            THREE: this.THREE,
+                            position: new this.THREE.Vector3(
+                                worldPos.x,
+                                this.settings.obstacles.height / 2 + 0.05,
+                                worldPos.z
+                            ),
+                            settings: this.settings,
+                            scene: this.scene,
+                            physicsWorld: this.physicsWorld
+                        });
+
+                        if (obstacle.mesh) {
+                            this.mapMesh.add(obstacle.mesh);
+                            this.markTileOccupied(x, z);
+                            this.obstaclesList.push(obstacle);
+                            obstaclesPlaced++;
+                        }
+                    } catch (error) {
+                        console.warn(`Failed to create obstacle at position (${x}, ${z}):`, error);
+                    }
                 }
-            } catch (error) {
-                console.error(`Error creating obstacle at position (${pos.x}, ${pos.z}):`, error);
             }
-        });
+        }
+
     }
     // Getter methods for obstacles and walls
     getObstacles() {
@@ -271,7 +284,7 @@ class TileMap {
         return this.wallsList;
     }
 
-    getTiles(){
+    getTiles() {
         return this.tiles;
     }
     // Get specific obstacle at grid position
