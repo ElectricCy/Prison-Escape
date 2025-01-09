@@ -134,11 +134,15 @@ class Joystick {
         const deltaY = this.currentPosition.y - 50;
         const distance = Math.min(50, Math.sqrt(deltaX * deltaX + deltaY * deltaY));
         const angle = Math.atan2(deltaY, deltaX);
-
-        // Normalize vector
+        // Implement 16-way directional movement
+        const sectors = 16;
+        const sectorSize = (Math.PI * 2) / sectors;
+        const snappedAngle = Math.round(angle / sectorSize) * sectorSize;
+        // Calculate normalized vector components
+        const normalizedDistance = distance / 50;
         this.vector = {
-            x: (distance * Math.cos(angle)) / 50,
-            y: (distance * Math.sin(angle)) / 50
+            x: Math.cos(snappedAngle) * normalizedDistance,
+            y: Math.sin(snappedAngle) * normalizedDistance
         };
 
         this.updateStickPosition();
@@ -152,6 +156,10 @@ class Joystick {
         };
         this.stick.style.left = '25px';
         this.stick.style.top = '25px';
+        // Trigger an immediate input update
+        if (window.Player) {
+            window.Player.handleMovementInput();
+        }
     }
 
     getEventPosition(e) {
@@ -179,11 +187,14 @@ class Joystick {
         const deltaX = this.currentPosition.x - 50;
         const deltaY = this.currentPosition.y - 50;
         const distance = Math.min(50, Math.sqrt(deltaX * deltaX + deltaY * deltaY));
+
+        // Use the snapped angle for visual feedback
+        const sectors = 16;
+        const sectorSize = (Math.PI * 2) / sectors;
         const angle = Math.atan2(deltaY, deltaX);
-
-        const x = 25 + (distance * Math.cos(angle));
-        const y = 25 + (distance * Math.sin(angle));
-
+        const snappedAngle = Math.round(angle / sectorSize) * sectorSize;
+        const x = 25 + (distance * Math.cos(snappedAngle));
+        const y = 25 + (distance * Math.sin(snappedAngle));
         this.stick.style.left = x + 'px';
         this.stick.style.top = y + 'px';
     }

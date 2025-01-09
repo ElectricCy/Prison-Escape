@@ -1,5 +1,3 @@
-
-
 class Obstacle {
     constructor(params) {
         if (!params) {
@@ -39,10 +37,14 @@ class Obstacle {
             this.height,
             this.tileSize
         );
+        const textureLoader = new this.THREE.TextureLoader();
+        const wallTexture = textureLoader.load(this.settings.obstacles.wallTexture.url);
+        // Set texture wrapping from settings
+        wallTexture.wrapS = this.THREE[this.settings.obstacles.wallTexture.wrapping.wrapS];
+        wallTexture.wrapT = this.THREE[this.settings.obstacles.wallTexture.wrapping.wrapT];
         const material = new this.THREE.MeshStandardMaterial({
-            color: this.settings.obstacles.material.color,
-            roughness: this.settings.obstacles.material.roughness,
-            metalness: this.settings.obstacles.material.metalness
+            map: wallTexture,
+            ...this.settings.obstacles.wallTexture.material
         });
         const mesh = new this.THREE.Mesh(geometry, material);
         mesh.position.copy(this.position);
@@ -95,3 +97,4 @@ class Obstacle {
         }
     }
 }
+window.Obstacle = Obstacle
