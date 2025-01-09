@@ -1,5 +1,6 @@
+
 class DungeonGenerator {
-    constructor(params) {
+    constructor() {
         this.gridCellSize = 20; // Size of each grid cell in world units (matching APP_SETTINGS.tilemap.tileSize)
         this.gridSize = 31; // Total size of dungeon grid
         this.gridCenter = Math.floor(this.gridSize / 2); // Center point of grid
@@ -23,7 +24,7 @@ class DungeonGenerator {
 
         // Initialize DungeonManager
         window.DungeonManager = new DungeonManager();
-        DungeonManager.initialize({
+        window.DungeonManager.initialize({
             width: this.gridSize,
             height: this.gridSize,
             tileSize: this.gridCellSize
@@ -97,7 +98,7 @@ class DungeonGenerator {
             processedRoom.type = roomType;
 
             // Add room to DungeonManager
-            DungeonManager.addRoom(processedRoom);
+            window.DungeonManager.addRoom(processedRoom);
 
             return processedRoom;
         });
@@ -415,3 +416,288 @@ class DungeonGenerator {
         };
     }
 }
+window.DungeonGenerator = DungeonGenerator;
+class Room {
+    constructor(params) {
+        if (!params) throw new Error('Room: params are required');
+        // Validate required dependencies
+        const required = ['THREE', 'tileMap', 'settings'];
+        required.forEach(prop => {
+            if (!params[prop]) throw new Error(`Room: ${prop} is required`);
+        });
+        // Connection tracking
+        this.connections = new Map(); // Map of connected rooms and their shared doors
+        this.doors = new Set(); // Set of door positions
+        this.connectedRooms = new Set(); // Set of connected room references
+        // Store dependencies
+        this.THREE = params.THREE;
+        this.tileMap = params.tileMap;
+        this.settings = params.settings;
+        // Core properties
+        this.id = params.id || Math.random().toString(36).substr(2, 9);
+        this.type = params.type || 'STANDARD';
+        this.name = params.name || `Room ${this.id}`;
+        this.label = null; // THREE.Sprite for room label
+        // Tile and position data
+        this.tiles = new Set(); // Store tile references
+        this.boundaries = {
+            left: params.left,
+            right: params.right,
+            top: params.top,
+            bottom: params.bottom
+        };
+        // Calculate dimensions
+        this.dimensions = {
+            width: this.boundaries.right - this.boundaries.left + 1,
+            height: this.boundaries.bottom - this.boundaries.top + 1
+        };
+        // Calculate positions
+        this.positions = {
+            grid: {
+                center: {
+                    x: Math.floor((this.boundaries.left + this.boundaries.right) / 2),
+                    z: Math.floor((this.boundaries.top + this.boundaries.bottom) / 2)
+                }
+            },
+            world: this.calculateWorldPosition()
+        };
+        // Room features
+        this.features = new Map(); // Map of feature name to feature object
+        this.entities = new Set(); // Set of entities in the room
+        this.initialized = false;
+        // Initialize room
+        this.init();
+    }
+    // Room connection methods
+    addConnection(room, doorPosition) {
+        if (!room || !(room instanceof Room)) {
+            throw new Error('Invalid room provided for connection');
+        }
+        // Add door position
+        this.doors.add(doorPosition);
+        // Add connected room
+        this.connectedRooms.add(room);
+        // Store connection details
+        this.connections.set(room.id, {
+            room: room,
+            doorPosition: doorPosition
+        });
+        // Add reciprocal connection if it doesn't exist
+        if (!room.isConnectedTo(this)) {
+            room.addConnection(this, doorPosition);
+        }
+    }
+    removeConnection(room) {
+        if (!room || !this.connections.has(room.id)) return;
+        // Get connection details
+        const connection = this.connections.get(room.id);
+        // Remove door position
+        this.doors.delete(connection.doorPosition);
+        // Remove from connected rooms
+        this.connectedRooms.delete(room);
+        // Remove connection
+        this.connections.delete(room.id);
+        // Remove reciprocal connection
+        if (room.isConnectedTo(this)) {
+            room.removeConnection(this);
+        }
+    }
+    isConnectedTo(room) {
+        return this.connections.has(room.id);
+    }
+    getDoors() {
+        // Return array of door positions without requiring a callback
+        return Array.from(this.doors);
+    }
+    // Add helper method to check if room has doors
+    hasDoors() {
+        return this.doors.size > 0;
+    }
+    getConnectedRooms() {
+        return Array.from(this.connectedRooms);
+    }
+    getConnectionDetails(room) {
+        return this.connections.get(room.id);
+    }
+    init() {
+        this.collectTiles();
+        this.createRoomLabel();
+        this.initializeRoomType();
+    }
+    calculateWorldPosition() {
+        const gridCenter = Math.floor(this.tileMap.width / 2);
+        const tileSize = this.tileMap.tileSize;
+
+        return {
+            center: {
+                x: (this.positions.grid.center.x - gridCenter) * tileSize,
+                y: 0,
+                z: (this.positions.grid.center.z - gridCenter) * tileSize
+            },
+            bounds: {
+                min: {
+                    x: (this.boundaries.left - gridCenter) * tileSize,
+                    z: (this.boundaries.top - gridCenter) * tileSize
+                },
+                max: {
+                    x: (this.boundaries.right - gridCenter) * tileSize,
+                    z: (this.boundaries.bottom - gridCenter) * tileSize
+                }
+            }
+        };
+    }
+    collectTiles() {
+        // Get all tiles within room boundaries
+        for (let x = this.boundaries.left; x <= this.boundaries.right; x++) {
+            for (let z = this.boundaries.top; z <= this.boundaries.bottom; z++) {
+                const tile = this.tileMap.getTileAt(x, z);
+                if (tile) {
+                    this.tiles.add(tile);
+                }
+            }
+        }
+    }
+    createRoomLabel() {
+        // Create text sprite for room label
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 256;
+        canvas.height = 256;
+        // Configure text style
+        context.font = 'Bold 36px Arial';
+        context.fillStyle = 'white';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        // Draw room name and type
+        context.fillText(`${this.name}`, 128, 108);
+        context.font = '24px Arial';
+        context.fillText(`(${this.type})`, 128, 148);
+        // Create sprite
+        const texture = new this.THREE.CanvasTexture(canvas);
+        const spriteMaterial = new this.THREE.SpriteMaterial({
+            map: texture
+        });
+        this.label = new this.THREE.Sprite(spriteMaterial);
+        // Position label above room center
+        this.label.position.set(
+            this.positions.world.center.x,
+            20, // Height above ground
+            this.positions.world.center.z
+        );
+        this.label.scale.set(10, 10, 1);
+    }
+    initializeRoomType() {
+        if (this.initialized) return;
+        switch (this.type) {
+            case 'SAFE':
+                this.initializeSafeRoom();
+                break;
+            case 'BOSS':
+                this.initializeBossRoom();
+                break;
+            default:
+                this.initializeStandardRoom();
+        }
+        this.initialized = true;
+    }
+    initializeSafeRoom() {
+        // Add safe room specific features with positions
+        this.features.set('RESPAWN_POINT', {
+            position: this.positions.world.center,
+            active: true
+        });
+
+        this.features.set('HEALTH_STATION', {
+            position: {
+                x: this.positions.world.center.x + 5,
+                y: 0,
+                z: this.positions.world.center.z
+            },
+            active: true
+        });
+        // Update room appearance for safe room
+        this.tiles.forEach(tile => {
+            if (tile.mesh) {
+                tile.mesh.material.color.setHex(0x4444ff);
+            }
+        });
+    }
+    initializeStandardRoom() {
+        if (Math.random() < 0.3) {
+            this.features.set('LOOT_SPAWN', {
+                position: this.positions.world.center,
+                active: true,
+                lootType: 'RANDOM'
+            });
+        }
+    }
+    initializeBossRoom() {
+        this.features.set('BOSS_SPAWN', {
+            position: this.positions.world.center,
+            active: true,
+            bossType: 'RANDOM'
+        });
+        this.features.set('LOOT_SPAWN', {
+            position: {
+                x: this.positions.world.center.x,
+                y: 0,
+                z: this.positions.world.center.z + 5
+            },
+            active: false, // Activated after boss defeat
+            lootType: 'BOSS'
+        });
+        // Update room appearance for boss room
+        this.tiles.forEach(tile => {
+            if (tile.mesh) {
+                tile.mesh.material.color.setHex(0xff4444);
+            }
+        });
+    }
+    // Utility methods
+    addFeature(featureName, featureData) {
+        this.features.set(featureName, featureData);
+    }
+    // Check if room has valid connections
+    hasValidConnections() {
+        return this.connections.size > 0 &&
+            Array.from(this.connections.values()).every(conn =>
+                conn.room && conn.doorPosition);
+    }
+    // Get number of connections
+    getConnectionCount() {
+        return this.connections.size;
+    }
+    removeFeature(featureName) {
+        this.features.delete(featureName);
+    }
+    addEntity(entity) {
+        this.entities.add(entity);
+    }
+    removeEntity(entity) {
+        this.entities.delete(entity);
+    }
+    showLabel() {
+        if (this.label && !this.label.parent) {
+            this.tileMap.scene.add(this.label);
+        }
+    }
+    hideLabel() {
+        if (this.label && this.label.parent) {
+            this.tileMap.scene.remove(this.label);
+        }
+    }
+    // Get room data
+    getRoomData() {
+        return {
+            id: this.id,
+            type: this.type,
+            name: this.name,
+            position: this.positions,
+            dimensions: this.dimensions,
+            features: Array.from(this.features.entries()),
+            entities: Array.from(this.entities),
+            tileCount: this.tiles.size
+        };
+    }
+}
+window.Room = Room;

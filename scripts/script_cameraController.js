@@ -39,6 +39,10 @@ class CameraController {
                 return;
             }
         }
+        this.joystickSensitivity = {
+            x: this.settings.controls.joystickSensitivity.x,
+            y: this.settings.controls.joystickSensitivity.y
+        };
         console.log('CameraController: Input system initialized');
     }
     updateRotation() {
@@ -47,21 +51,32 @@ class CameraController {
             return;
         }
         try {
+            // Handle mouse input
             const mouseDelta = this.input.getMouseDelta();
-            if (!mouseDelta) {
-                console.warn('CameraController: Invalid mouse delta');
-                return;
+            if (mouseDelta) {
+                this.theta -= mouseDelta.x * this.sensitivity.x;
+                this.phi -= mouseDelta.y * this.sensitivity.y;
             }
-            // Update rotation angles based on mouse movement
-            this.theta -= mouseDelta.x * this.sensitivity.x;
-            this.phi -= mouseDelta.y * this.sensitivity.y;
+            
+            // Handle joystick input
+            if (window.HUD?.components?.CameraJoystick) {
+                const joystickInput = window.HUD.components.CameraJoystick.getInput();
+                if (joystickInput.x !== 0 || joystickInput.y !== 0) {
+                    this.theta -= joystickInput.x * this.joystickSensitivity.x;
+                    this.phi -= joystickInput.y * this.joystickSensitivity.y;
+                }
+            }
+
             // Clamp vertical rotation
             this.phi = Math.max(this.minPhi, Math.min(this.maxPhi, this.phi));
+
             // Calculate rotation matrices
             const rotationX = new this.THREE.Matrix4().makeRotationX(this.phi);
             const rotationY = new this.THREE.Matrix4().makeRotationY(this.theta);
+
             // Combine rotations (Y first, then X)
             const finalRotation = new this.THREE.Matrix4().multiplyMatrices(rotationY, rotationX);
+
             // Apply rotation to camera
             this.camera.quaternion.setFromRotationMatrix(finalRotation);
         } catch (error) {

@@ -56,7 +56,6 @@ class EnemyAnimationController {
                 throw new Error('EnemyAnimationController: No animations found in enemy model settings');
             }
             const modelAnimations = this.settings.model.animations;
-
             // Load animations if not already loaded
             if (this.animations.size === 0 && modelAnimations) {
                 await Promise.all(
@@ -66,11 +65,19 @@ class EnemyAnimationController {
                 );
             }
             // Play or restart idle animation
-            this.playAnimation('idle');
+            this.playAnimation('walk'); // Changed from 'idle' to 'walk' since that's our only animation
         } catch (error) {
             console.error('Failed to load animations:', error);
             throw error;
         }
+    }
+    getAnimation(name) {
+        const action = this.animations.get(name);
+        if (!action) {
+            console.warn(`Animation not found: ${name}`);
+            return null;
+        }
+        return action.getClip();
     }
     playAnimation(name) {
         const action = this.animations.get(name);
