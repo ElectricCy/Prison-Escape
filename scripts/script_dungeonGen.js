@@ -216,7 +216,7 @@ class DungeonGenerator {
             side: THREE.FrontSide
         });
 
-        const ceilingMaterial = new THREE.MeshStandardMaterial({
+        const baseCeilingMaterial = new THREE.MeshStandardMaterial({
             color: 0x505050,
             roughness: 0.9,
             metalness: 0.1,
@@ -327,15 +327,30 @@ class DungeonGenerator {
             }
         }
         // Remove duplicate floor creation
-        // Create ceiling with consistent measurements
+        // Create ceiling with consistent measurements and texture
         const ceilingHeight = 40; // Height of the ceiling
         const tileSize = APP_SETTINGS.tilemap.tileSize; // Use the tilemap's tileSize
+
+        // Load ceiling texture
+        const textureLoader = new THREE.TextureLoader();
+        const ceilingTexture = textureLoader.load('https://play.rosebud.ai/assets/empty-gray-background.jpg?Bgwg');
+        ceilingTexture.wrapS = THREE.RepeatWrapping;
+        ceilingTexture.wrapT = THREE.RepeatWrapping;
+        ceilingTexture.repeat.set(1, 1); // Larger tiles (2x)
+
+        // Create ceiling material with texture
+        const texturedCeilingMaterial = new THREE.MeshStandardMaterial({
+            map: ceilingTexture,
+            roughness: 0.9,
+            metalness: 0.1,
+            side: THREE.FrontSide
+        });
         // Create ceiling tiles individually
         for (let x = 0; x < this.gridSize; x++) {
             for (let y = 0; y < this.gridSize; y++) {
                 if (this.map[x] && this.map[x][y] === 0) {
                     const ceilingGeometry = new THREE.BoxGeometry(tileSize, 1, tileSize);
-                    const ceilingTile = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
+                    const ceilingTile = new THREE.Mesh(ceilingGeometry, texturedCeilingMaterial);
 
                     // Calculate world position using tilemap coordinates
                     const gridCenter = Math.floor(this.gridSize / 2);
@@ -354,8 +369,9 @@ class DungeonGenerator {
                 }
             }
         }
-        // Create room lights
+        // Create room lights and furniture
         const roomLights = new THREE.Group();
+        const furnitureGroup = new THREE.Group();
 
         // Process each room to add lights
         this.processedRooms.forEach(async room => {
@@ -396,6 +412,120 @@ class DungeonGenerator {
             roomLights.add(lightCone);
 
 
+            // Place cabinets based on room size
+            const roomSize = window.DungeonManager.getRoomAtPosition(room.center.x, room.center.z)?.dimensions;
+            const numCabinets = roomSize && roomSize.width * roomSize.height > 20 ? 3 :
+                roomSize && roomSize.width * roomSize.height > 12 ? 2 : 1;
+
+            console.log(`Attempting to place ${numCabinets} cabinets in room:`, {
+                roomSize,
+                center: room.center,
+                bounds: room.bounds
+            });
+            // Load cabinet model using GLTFLoader
+            try {
+                const gltfLoader = new GLTFLoader(window.LoadingManager);
+                gltfLoader.load(
+                    MODEL_ASSETS.CABINET.url,
+                    (gltf) => {
+                        console.log('Cabinet model loaded successfully');
+                        const cabinetModel = gltf.scene;
+                        cabinetModel.traverse((child) => {
+                            if (child.isMesh) {
+                                child.castShadow = true;
+                                child.receiveShadow = true;
+                            }
+                        });
+                        const scale = MODEL_ASSETS.CABINET.scale;
+                        cabinetModel.scale.set(scale, scale, scale);
+                        // Get valid wall positions for cabinet placement
+                        const wallPositions = [];
+                        const roomLeft = ((room.bounds.left - gridCenter) * APP_SETTINGS.tilemap.tileSize);
+                        const roomRight = ((room.bounds.right - gridCenter) * APP_SETTINGS.tilemap.tileSize);
+                        const roomTop = ((room.bounds.top - gridCenter) * APP_SETTINGS.tilemap.tileSize);
+                        const roomBottom = ((room.bounds.bottom - gridCenter) * APP_SETTINGS.tilemap.tileSize);
+                        // Add potential wall positions
+                        for (let x = roomLeft; x <= roomRight; x += APP_SETTINGS.tilemap.tileSize) {
+                            wallPositions.push({
+                                x: x,
+                                z: roomTop,
+                                rotation: Math.PI
+                            }); // North wall
+                            wallPositions.push({
+                                x: x,
+                                z: roomBottom,
+                                rotation: 0
+                            }); // South wall
+                        }
+                        for (let z = roomTop; z <= roomBottom; z += APP_SETTINGS.tilemap.tileSize) {
+                            wallPositions.push({
+                                x: roomLeft,
+                                z: z,
+                                rotation: -Math.PI / 2
+                            }); // West wall
+                            wallPositions.push({
+                                x: roomRight,
+                                z: z,
+                                rotation: Math.PI / 2
+                            }); // East wall
+                        }
+                        // Randomly select positions for cabinets
+                        for (let i = 0; i < numCabinets && wallPositions.length > 0; i++) {
+                            try {
+                                const randomIndex = Math.floor(Math.random() * wallPositions.length);
+                                const position = wallPositions.splice(randomIndex, 1)[0];
+
+                                console.log(`Placing cabinet ${i + 1}/${numCabinets} at:`, {
+                                    x: position.x,
+                                    z: position.z,
+                                    rotation: position.rotation
+                                });
+                                const cabinet = cabinetModel.clone();
+                                cabinet.position.set(position.x, 0, position.z);
+                                cabinet.rotation.y = position.rotation;
+                                // Add physics body for cabinet
+                                const cabinetShape = new CANNON.Box(new CANNON.Vec3(5, 10, 5));
+                                const cabinetBody = new CANNON.Body({
+                                    mass: 0,
+                                    position: new CANNON.Vec3(position.x, 10, position.z),
+                                    shape: cabinetShape
+                                });
+                                cabinetBody.collisionFilterGroup = APP_SETTINGS.physics.collisionGroups.OBSTACLE;
+                                cabinetBody.collisionFilterMask =
+                                    APP_SETTINGS.physics.collisionGroups.PLAYER |
+                                    APP_SETTINGS.physics.collisionGroups.ENEMY;
+                                if (window.GameWorld?.physicsWorld) {
+                                    window.GameWorld.physicsWorld.addBody(cabinetBody);
+                                    console.log('Added physics body for cabinet');
+                                }
+
+                                // Add cabinet to scene and track it
+                                WorldScene.add(cabinet);
+                                console.log('Added cabinet to scene');
+
+                                // Store reference to cabinet
+                                if (!window.GameWorld.cabinets) {
+                                    window.GameWorld.cabinets = [];
+                                }
+                                window.GameWorld.cabinets.push({
+                                    mesh: cabinet,
+                                    body: cabinetBody
+                                });
+                            } catch (error) {
+                                console.error('Failed to place cabinet:', error);
+                            }
+                        }
+                    },
+                    (xhr) => {
+                        console.log(`Cabinet loading: ${(xhr.loaded / xhr.total) * 100}% loaded`);
+                    },
+                    (error) => {
+                        console.error('Error loading cabinet model:', error);
+                    }
+                );
+            } catch (error) {
+                console.error('Error in cabinet placement setup:', error);
+            }
             // Load light fixture model using FBXLoader directly
             const fbxLoader = new FBXLoader(window.LoadingManager);
             fbxLoader.load(MODEL_ASSETS.LIGHT_FIXTURE.url, (fixture) => {

@@ -437,6 +437,11 @@ class Enemy {
             case this.states.PATROL:
                 this.moveSpeed = this.patrolSpeed;
                 this.generatePatrolPoints();
+                // Stop robot attack sound if it's still playing
+                if (this.robotAttackSoundId) {
+                    window.AudioManager.stopEffect(this.robotAttackSoundId);
+                    this.robotAttackSoundId = null;
+                }
                 // Start footsteps sound only if not already playing
                 if (window.AudioManager && window.AudioManager.playEffect && !this.footstepsSoundId) {
                     const position = this.getPosition();
@@ -623,6 +628,11 @@ class Enemy {
                 break;
             case this.states.CHASE:
                 if (distanceToPlayer > this.detectionRange) {
+                    // Stop robot attack sound when transitioning back to patrol
+                    if (this.robotAttackSoundId) {
+                        window.AudioManager.stopEffect(this.robotAttackSoundId);
+                        this.robotAttackSoundId = null;
+                    }
                     newState = this.states.PATROL;
                 } else if (distanceToPlayer <= 11.0) {
                     console.log('Player is within capture range!');
