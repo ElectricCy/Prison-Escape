@@ -47,6 +47,7 @@ class TileMap {
         this.mapMesh = new this.THREE.Group();
         this.occupiedPositions = new Set();
         this.navMesh = null;
+        this.dungeonManager = null;
     }
     createTiles() {
         if (!this.Materials || !this.THREE) {
@@ -239,6 +240,7 @@ class TileMap {
 
     placeObstacles() {
         this.dungeonGen = new DungeonGenerator();
+        this.dungeonManager = this.dungeonGen.dungeonManager;
         this.dungeonGen.generate();
         this.obstaclesList = []; // Clear existing obstacles
         let obstaclesPlaced = 0;
