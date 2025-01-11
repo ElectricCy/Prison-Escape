@@ -243,6 +243,54 @@ class TileMap {
         this.obstaclesList = []; // Clear existing obstacles
         let obstaclesPlaced = 0;
         let placementAttempts = 0;
+        const dungeonManager = this.dungeonGen.dungeonManager;
+        const largeRooms = dungeonManager.getRoomsByCategory('large');
+        const cabinetModel = window.MODEL_ASSETS.CABINET;
+        if (largeRooms) {
+            for (const room of largeRooms) {
+                const roomTiles = dungeonManager.getRoomTiles(room.id);
+                const wallTiles = new Set();
+                for (const tile of roomTiles) {
+                    const neighbors = dungeonManager.getNeighbors(tile.x, tile.y);
+                    for (const neighbor of neighbors) {
+                        if (!dungeonManager.isWalkable(neighbor.x, neighbor.z)) {
+                            wallTiles.add(`${neighbor.x},${neighbor.z}`);
+                        }
+                    }
+                }
+                const wallTilesArray = Array.from(wallTiles);
+                const numCabinets = Math.min(Math.floor(wallTilesArray.length * 0.3), 5); // Spawn up to 30% of wall tiles or 5 cabinets
+                for (let i = 0; i < numCabinets; i++) {
+                    if (wallTilesArray.length === 0) break;
+                    const randomIndex = Math.floor(Math.random() * wallTilesArray.length);
+                    const [x, z] = wallTilesArray[randomIndex].split(',').map(Number);
+                    wallTilesArray.splice(randomIndex, 1);
+                    const worldPos = this.gridToWorldPosition(x, z);
+                    try {
+                        const obstacle = new this.Obstacle({
+                            THREE: this.THREE,
+                            position: new this.THREE.Vector3(
+                                worldPos.x,
+                                this.settings.obstacles.height / 2 + 0.05,
+                                worldPos.z
+                            ),
+                            settings: this.settings,
+                            scene: this.scene,
+                            physicsWorld: this.physicsWorld,
+                            model: cabinetModel
+                        });
+                        if (obstacle.mesh) {
+                            this.mapMesh.add(obstacle.mesh);
+                            this.markTileOccupied(x, z);
+                            this.obstaclesList.push(obstacle);
+                            obstaclesPlaced++;
+                        }
+                    } catch (error) {
+                        console.warn(`Failed to create cabinet at position (${x}, ${z}):`, error);
+                    }
+                }
+            }
+        }
         // Place obstacles based on dungeon walls
         for (let x = 0; x < this.width; x++) {
             for (let z = 0; z < this.height; z++) {
