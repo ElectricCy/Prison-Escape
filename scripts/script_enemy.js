@@ -199,6 +199,10 @@ class Enemy {
         this.footstepsSoundId = null;
         this.proximityManager = new ProximityManager();
         this.baseFootstepsVolume = 0.6; // Store the base volume
+        this.baseHeartbeatVolume = 0.5; // Store the base volume for heartbeat
+        this.baseRobotAttackVolume = 0.4; // Store the base volume for robot attack sound
+        this.heartbeatSoundId = null;
+        this.robotAttackSoundId = null;
         this.activeAnimation = null;
         this.currentAnimation = null;
         this.pathLine = null;
@@ -285,7 +289,7 @@ class Enemy {
         this.waitAtPointDuration = 2000;
         this.waitStartTime = 0;
         // Chase properties
-        this.detectionRange = 20;
+        this.detectionRange = 40;
         this.chaseSpeed = this.settings.chaseSpeed || 35; // Slower chase speed for better control
         this.patrolSpeed = this.settings.patrolSpeed || 20; // Slower patrol speed
         // Flash effect properties
@@ -517,17 +521,8 @@ class Enemy {
             this.physicsBody.wakeUp(); // Always wake up when moving
             this.physicsBody.velocity.x = newVelocity.x;
             this.physicsBody.velocity.z = newVelocity.z;
-            // Debug physics state
-            console.log('Physics State:', {
-                speed: this.moveSpeed,
-                sleepState: this.physicsBody.sleepState,
-                velocity: this.physicsBody.velocity,
-                isAwake: !this.physicsBody.sleeping
-            });
+
         }
-        // Debug: Log movement direction and velocity
-        console.log('Moving Direction:', direction);
-        console.log('Current Velocity:', this.physicsBody.velocity);
         if (lookAtTarget && this.model) {
             this.updateTargetRotation(targetPosition);
         }
@@ -618,6 +613,7 @@ class Enemy {
     }
     updateState(playerPosition) {
         const distanceToPlayer = this.getPosition().distanceTo(playerPosition);
+        console.log('Distance to player:', distanceToPlayer); // Debug distance
         let newState = this.currentState;
         switch (this.currentState) {
             case this.states.PATROL:
@@ -628,14 +624,18 @@ class Enemy {
             case this.states.CHASE:
                 if (distanceToPlayer > this.detectionRange) {
                     newState = this.states.PATROL;
-                } else if (distanceToPlayer < 2.0) {
+                } else if (distanceToPlayer <= 11.0) {
+                    console.log('Player is within capture range!');
+                    console.log('Current state:', this.currentState);
+                    console.log('Enemy position:', this.getPosition());
+                    console.log('Player position:', playerPosition);
                     newState = this.states.CAUGHT;
+                    console.log('New state set to:', newState);
                 }
                 break;
             case this.states.CAUGHT:
-                if (distanceToPlayer > 2.0) {
-                    newState = this.states.CHASE;
-                }
+                // Once in CAUGHT state, stay there - it's game over
+                newState = this.states.CAUGHT;
                 break;
             case this.states.FLASHED:
                 if (Date.now() - this.flashStartTime > this.flashDuration) {
@@ -644,11 +644,13 @@ class Enemy {
                 }
                 break;
         }
-        // Only change state if it's different from current state
+        // Debug state transition
         if (newState !== this.currentState) {
+            console.log('State transition:', this.currentState, '->', newState);
             this.exitState(this.currentState);
             this.currentState = newState;
-            this.enterState(this.currentState);
+            this.enterState(newState);
+            console.log('State after transition:', this.currentState);
         }
     }
     generatePatrolPoints() {
@@ -695,7 +697,7 @@ class Enemy {
         console.log('Generated Patrol Points:', this.patrolPoints);
     }
     executePatrolAction(deltaTime) {
-        // Handle footsteps sound
+        // Handle footsteps and heartbeat sounds
         if (window.AudioManager && window.Player) {
             const enemyPosition = this.getPosition();
             const playerPosition = window.Player.getPosition();
@@ -707,7 +709,11 @@ class Enemy {
                 // If we're in audible range and sound isn't playing
                 if (volume > 0 && !this.footstepsSoundId) {
                     this.footstepsSoundId = window.AudioManager.playEffect('footsteps', enemyPosition);
-                    console.log('Started footsteps sound with ID:', this.footstepsSoundId);
+                    const sound = window.AudioManager.activeEffects.get(this.footstepsSoundId);
+                    if (sound) {
+                        sound.setLoop(true);
+                    }
+                    console.log('Started looping footsteps sound with ID:', this.footstepsSoundId);
                 }
                 // Update existing sound
                 if (this.footstepsSoundId) {
@@ -722,6 +728,41 @@ class Enemy {
                 if (volume <= 0 && this.footstepsSoundId) {
                     window.AudioManager.stopEffect(this.footstepsSoundId);
                     this.footstepsSoundId = null;
+                }
+            }
+        }
+
+        // Handle heartbeat sound
+        if (window.AudioManager && window.Player) {
+            const enemyPosition = this.getPosition();
+            const playerPosition = window.Player.getPosition();
+            if (enemyPosition && playerPosition) {
+                // Calculate distance for heartbeat (half the range of footsteps)
+                const volume = this.proximityManager.calculateVolumeByDistance(
+                    enemyPosition,
+                    playerPosition,
+                    this.proximityManager.maxDistance / 2 // Half the max distance
+                );
+                // If we're in audible range and sound isn't playing
+                if (volume > 0 && !this.heartbeatSoundId) {
+                    this.heartbeatSoundId = window.AudioManager.playEffect('heartbeat', enemyPosition);
+                    const sound = window.AudioManager.activeEffects.get(this.heartbeatSoundId);
+                    if (sound) {
+                        sound.setLoop(true);
+                    }
+                }
+                // Update existing sound
+                if (this.heartbeatSoundId) {
+                    const sound = window.AudioManager.activeEffects.get(this.heartbeatSoundId);
+                    if (sound) {
+                        sound.position.set(enemyPosition.x, enemyPosition.y, enemyPosition.z);
+                        sound.setVolume(Math.max(0, Math.min(1, this.baseHeartbeatVolume * volume)));
+                    }
+                }
+                // Stop sound if out of range
+                if (volume <= 0 && this.heartbeatSoundId) {
+                    window.AudioManager.stopEffect(this.heartbeatSoundId);
+                    this.heartbeatSoundId = null;
                 }
             }
         }
@@ -751,10 +792,6 @@ class Enemy {
         );
         // Calculate distance to target
         const distanceToTarget = currentPosition.distanceTo(targetPosition);
-        // Debug logging
-        console.log('Current Position:', currentPosition);
-        console.log('Target Position:', targetPosition);
-        console.log('Distance to target:', distanceToTarget);
         if (distanceToTarget < 1.0) {
             console.log('Reached patrol point:', targetPoint);
             this.currentPatrolIndex = (this.currentPatrolIndex + 1) % this.patrolPoints.length;
@@ -769,13 +806,6 @@ class Enemy {
             const tileSize = window.GameWorld.tilemap.tileSize;
             const gridPos = tilemap.worldToGridPosition(enemyPos.x, enemyPos.z);
             const targetGridPos = tilemap.worldToGridPosition(targetPoint.x, targetPoint.z);
-            // Log positions for debugging
-            console.log('Enemy world pos:', enemyPos);
-            console.log('Enemy grid pos:', gridPos);
-            console.log('Target grid pos:', targetGridPos);
-            // Debug: Log grid positions
-            console.log('Enemy Grid Position:', gridPos);
-            console.log('Target Grid Position:', targetGridPos);
             // Generate path using A* algorithm
             const astar = new ROT.Path.AStar(
                 targetGridPos.x,
@@ -789,8 +819,6 @@ class Enemy {
                 const worldPos = tilemap.gridToWorldPosition(x, y);
                 this.path.push(worldPos);
             });
-            // Debug: Log generated path
-            console.log('Generated Path:', this.path);
             if (this.path.length > 0) {
                 this.path.shift(); // Remove the first point (current position)
             }
@@ -805,9 +833,6 @@ class Enemy {
             } else {
                 const targetPos = new THREE.Vector3(pathTarget.x, currentPosition.y, pathTarget.z);
                 this.moveInDirection(targetPos, deltaTime, true);
-                // Debug movement
-                console.log('Moving to path target:', targetPos);
-                console.log('Current velocity:', this.physicsBody.velocity);
             }
         } else {
             // Direct movement if no path is available
@@ -815,7 +840,76 @@ class Enemy {
         }
     }
     executeChaseAction(deltaTime, playerPosition) {
-        if (!playerPosition) return;
+        if (!playerPosition || !this.path || this.currentPathIndex >= this.path.length) {
+            // Reset path if invalid
+            this.path = [];
+            this.currentPathIndex = 0;
+            return;
+        }
+        // Handle robot attack sound during chase
+        if (window.AudioManager) {
+            const enemyPosition = this.getPosition();
+            if (enemyPosition && playerPosition) {
+                const volume = this.proximityManager.calculateVolumeByDistance(
+                    enemyPosition,
+                    playerPosition,
+                    this.proximityManager.maxDistance
+                );
+                // If we're in audible range and sound isn't playing
+                if (volume > 0 && !this.robotAttackSoundId) {
+                    this.robotAttackSoundId = window.AudioManager.playEffect('robotAttack', enemyPosition);
+                    const sound = window.AudioManager.activeEffects.get(this.robotAttackSoundId);
+                    if (sound) {
+                        sound.setLoop(true);
+                    }
+                }
+                // Update existing sound
+                if (this.robotAttackSoundId) {
+                    const sound = window.AudioManager.activeEffects.get(this.robotAttackSoundId);
+                    if (sound) {
+                        sound.position.set(enemyPosition.x, enemyPosition.y, enemyPosition.z);
+                        sound.setVolume(Math.max(0, Math.min(1, this.baseRobotAttackVolume * volume)));
+                    }
+                }
+                // Stop sound if out of range
+                if (volume <= 0 && this.robotAttackSoundId) {
+                    window.AudioManager.stopEffect(this.robotAttackSoundId);
+                    this.robotAttackSoundId = null;
+                }
+            }
+        }
+        // Handle heartbeat sound during chase
+        if (window.AudioManager) {
+            const enemyPosition = this.getPosition();
+            if (enemyPosition && playerPosition) {
+                const volume = this.proximityManager.calculateVolumeByDistance(
+                    enemyPosition,
+                    playerPosition,
+                    this.proximityManager.maxDistance / 2 // Half the max distance
+                );
+                // If we're in audible range and sound isn't playing
+                if (volume > 0 && !this.heartbeatSoundId) {
+                    this.heartbeatSoundId = window.AudioManager.playEffect('heartbeat', enemyPosition);
+                    const sound = window.AudioManager.activeEffects.get(this.heartbeatSoundId);
+                    if (sound) {
+                        sound.setLoop(true);
+                    }
+                }
+                // Update existing sound
+                if (this.heartbeatSoundId) {
+                    const sound = window.AudioManager.activeEffects.get(this.heartbeatSoundId);
+                    if (sound) {
+                        sound.position.set(enemyPosition.x, enemyPosition.y, enemyPosition.z);
+                        sound.setVolume(Math.max(0, Math.min(1, this.baseHeartbeatVolume * volume)));
+                    }
+                }
+                // Stop sound if out of range
+                if (volume <= 0 && this.heartbeatSoundId) {
+                    window.AudioManager.stopEffect(this.heartbeatSoundId);
+                    this.heartbeatSoundId = null;
+                }
+            }
+        }
         const currentPosition = this.getPosition();
         const distanceToPlayer = currentPosition.distanceTo(playerPosition);
         // Update path to player more frequently during chase
@@ -858,9 +952,13 @@ class Enemy {
         }
         if (this.path.length > 0) {
             const currentTarget = this.path[this.currentPathIndex];
-            const distanceToTarget = currentPosition.distanceTo(
-                new THREE.Vector3(currentTarget.x, currentPosition.y, currentTarget.z)
+            if (!currentTarget) return;
+            const targetVec = new THREE.Vector3(
+                currentTarget.x || 0,
+                currentPosition.y,
+                currentTarget.z || 0
             );
+            const distanceToTarget = currentPosition.distanceTo(targetVec);
             if (distanceToTarget < 1) {
                 this.currentPathIndex++;
                 if (this.currentPathIndex >= this.path.length) {
@@ -880,7 +978,140 @@ class Enemy {
         }
     }
     executeCaughtAction(deltaTime) {
-        // Implement caught behavior (e.g., game over logic)
+        // Play captured animation when entering caught state
+        this.playCapturedAnimation();
+        // Stop all movement for both enemy and player
+        if (this.physicsBody) {
+            this.physicsBody.velocity.set(0, 0, 0);
+            this.physicsBody.sleep();
+        }
+        if (window.Player && !this.hasCapturedPlayer) {
+            this.hasCapturedPlayer = true;
+            // // Stop player movement and disable controls
+            // window.Player.disable();
+            // Get positions for camera calculation
+            const playerPos = window.Player.getPosition();
+            const enemyPos = this.getPosition();
+            // Calculate direction from player to enemy
+            const direction = new THREE.Vector3()
+                .subVectors(enemyPos, playerPos)
+                .normalize();
+            // Calculate rotation to face enemy
+            const targetRotation = new THREE.Euler(0, Math.atan2(direction.x, direction.z), 0);
+            // Smoothly rotate camera to face enemy
+            const duration = 1000; // 1 second rotation
+            const startRotation = window.MainCamera.rotation.clone();
+            const startTime = Date.now();
+            const animateCamera = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                // Use easing function for smooth animation
+                const easeProgress = 1 - Math.pow(1 - progress, 3);
+                // Interpolate camera rotation
+                window.MainCamera.rotation.y = startRotation.y +
+                    (targetRotation.y - startRotation.y) * easeProgress;
+                if (progress < 1) {
+                    requestAnimationFrame(animateCamera);
+                }
+            };
+            // Start camera animation
+            animateCamera();
+            // Create video overlay
+            if (!this.videoOverlay) {
+                // Create container for video
+                this.videoOverlay = document.createElement('div');
+                this.videoOverlay.style.position = 'fixed';
+                this.videoOverlay.style.top = '0';
+                this.videoOverlay.style.left = '0';
+                this.videoOverlay.style.width = '100%';
+                this.videoOverlay.style.height = '100%';
+                this.videoOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                this.videoOverlay.style.zIndex = '999';
+                this.videoOverlay.style.opacity = '0';
+                this.videoOverlay.style.transition = 'opacity 1s ease-in';
+                // Create video element
+                const video = document.createElement('video');
+                video.src = 'https://play.rosebud.ai/assets/watermarked_video094a7cab04cf048949ecbb3e3c32a3573.mp4?5NZY';
+                video.style.width = '100%';
+                video.style.height = '100%';
+                video.style.objectFit = 'cover';
+                video.muted = false;
+                video.loop = true;
+
+                this.videoOverlay.appendChild(video);
+                document.body.appendChild(this.videoOverlay);
+                // Fade in the overlay
+                setTimeout(() => {
+                    this.videoOverlay.style.opacity = '1';
+                    video.play().catch(console.error);
+                }, 100);
+            }
+        }
+        // Create and animate captured message
+        if (!this.capturedMessage) {
+            this.capturedMessage = document.createElement('div');
+            this.capturedMessage.style.position = 'fixed';
+            this.capturedMessage.style.top = '50%';
+            this.capturedMessage.style.left = '50%';
+            this.capturedMessage.style.transform = 'translate(-50%, -50%) scale(0)';
+            this.capturedMessage.style.color = 'red';
+            this.capturedMessage.style.fontSize = '48px';
+            this.capturedMessage.style.fontWeight = 'bold';
+            this.capturedMessage.style.textShadow = '2px 2px 4px #000000';
+            this.capturedMessage.style.zIndex = '1000';
+            this.capturedMessage.style.transition = 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+            this.capturedMessage.textContent = 'CAPTURED';
+            document.body.appendChild(this.capturedMessage);
+
+            // Trigger animation
+            setTimeout(() => {
+                this.capturedMessage.style.transform = 'translate(-50%, -50%) scale(1)';
+            }, 100);
+
+            // Play jump scare sound
+            if (window.AudioManager) {
+                window.AudioManager.playEffect('jumpScare');
+                // Stop any other enemy sounds
+                if (this.footstepsSoundId) {
+                    window.AudioManager.stopEffect(this.footstepsSoundId);
+                    this.footstepsSoundId = null;
+                }
+                if (this.heartbeatSoundId) {
+                    window.AudioManager.stopEffect(this.heartbeatSoundId);
+                    this.heartbeatSoundId = null;
+                }
+                if (this.robotAttackSoundId) {
+                    window.AudioManager.stopEffect(this.robotAttackSoundId);
+                    this.robotAttackSoundId = null;
+                }
+            }
+
+            // Change to Game Over after animation
+            setTimeout(() => {
+                this.capturedMessage.style.transform = 'translate(-50%, -50%) scale(0.8)';
+                setTimeout(() => {
+                    this.capturedMessage.style.transform = 'translate(-50%, -50%) scale(1.2)';
+                    this.capturedMessage.textContent = 'GAME OVER';
+                }, 300);
+            }, 3000);
+
+            // Hide HUD if it exists
+            if (window.HUD) {
+                window.HUD.hide();
+            }
+        }
+    }
+    playCapturedAnimation() {
+        console.log('Playing captured animation...');
+        // Stop any current animations
+        if (this.mixer) {
+            this.mixer.stopAllAction();
+        }
+        // TODO: Implement actual capture animation when available
+        // For now, we'll just use the idle animation if it exists
+        if (this.animationController) {
+            this.animationController.transitionToAnimation('walk');
+        }
     }
     executeFlashedAction(deltaTime) {
         // Implement stunned behavior
@@ -942,6 +1173,16 @@ class Enemy {
     }
     die() {
         if (this.isDead) return;
+        // Stop heartbeat sound if it's playing
+        if (this.heartbeatSoundId) {
+            window.AudioManager.stopEffect(this.heartbeatSoundId);
+            this.heartbeatSoundId = null;
+        }
+        // Stop robot attack sound if it's playing
+        if (this.robotAttackSoundId) {
+            window.AudioManager.stopEffect(this.robotAttackSoundId);
+            this.robotAttackSoundId = null;
+        }
         // Start death sequence with animations and effects
         this.startDeathSequence();
         // Set respawn timer if enabled in settings

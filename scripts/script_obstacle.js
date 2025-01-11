@@ -97,4 +97,4 @@ class Obstacle {
         }
     }
 }
-window.Obstacle = Obstacle
+window.Obstacle = Obstacle;

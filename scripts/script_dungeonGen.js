@@ -365,12 +365,36 @@ class DungeonGenerator {
             const worldZ = ((room.center.z - gridCenter) * APP_SETTINGS.tilemap.tileSize);
 
             // Create point light
-            const light = new THREE.PointLight(0xFFFFAA, 1.5, 150);
+            const light = new THREE.PointLight(0xFFFFAA, 0.8, 150);
             light.position.set(worldX, 18, worldZ); // Just below ceiling
             light.castShadow = true;
             light.shadow.mapSize.width = 512;
             light.shadow.mapSize.height = 512;
             light.shadow.radius = 2;
+            // Define the desired height extension
+            const additionalHeight = 20; // Adjust this value as needed
+
+            // Calculate the new height
+            const newHeight = 30 + additionalHeight;
+
+            // Create the light cone mesh with the new height
+            const coneGeometry = new THREE.ConeGeometry(20, newHeight, 32, 1, true, 0, Math.PI * 2);
+            const coneMaterial = new THREE.MeshBasicMaterial({
+                color: 0xFFFFAA,
+                transparent: true,
+                opacity: 0.1,
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const lightCone = new THREE.Mesh(coneGeometry, coneMaterial);
+
+            // Adjust the position to account for the increased height
+            lightCone.position.set(worldX, 25 - additionalHeight / 2, worldZ);
+
+            // Add the cone to the scene
+            roomLights.add(lightCone);
+
 
             // Load light fixture model using FBXLoader directly
             const fbxLoader = new FBXLoader(window.LoadingManager);
@@ -392,9 +416,14 @@ class DungeonGenerator {
                     const scale = MODEL_ASSETS.LIGHT_FIXTURE.scale || 1;
                     fixture.scale.set(scale, scale, scale);
 
-                    // Position and rotate the fixture
-                    fixture.position.set(worldX, ceilingHeight - 4, worldZ);
-                    // No rotation needed if the model is already oriented correctly
+                    // Position fixture at room center using DungeonManager's room data
+                    const roomCenter = window.DungeonManager.getRoomAtPosition(room.center.x, room.center.z);
+                    const centerPos = {
+                        x: ((room.center.x - gridCenter) * APP_SETTINGS.tilemap.tileSize),
+                        z: ((room.center.z - gridCenter) * APP_SETTINGS.tilemap.tileSize)
+                    };
+                    fixture.position.set(centerPos.x, ceilingHeight - 4, centerPos.z);
+                    // Maintain existing rotation
                     // If needed, you can adjust specific axes
                     fixture.rotation.set(0, 0, 0);
 
