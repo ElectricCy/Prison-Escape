@@ -310,12 +310,12 @@ class DungeonManager {
     getRandomTileInRoom(roomId) {
         const tiles = this.getRoomTiles(roomId);
         if (!tiles.length) return null;
-// Get all rooms of a specific category
+return tiles[Math.floor(Math.random() * tiles.length)];
+    }
+    // Get all rooms of a specific category
     getRoomsByCategory(category) {
         return Array.from(this.rooms.values())
             .filter(room => room.category === category);
-    }
-        return tiles[Math.floor(Math.random() * tiles.length)];
     }
     // Get all rooms of a specific type
     getRoomsByType(type) {
