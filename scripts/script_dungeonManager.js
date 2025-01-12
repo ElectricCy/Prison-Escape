@@ -57,18 +57,7 @@ class DungeonManager {
         if (existingRoom) {
             return existingRoom;
         }
-        console.group(`Adding room ${roomData.id}`);
-        console.log('Room data:', {
-            id: roomData.id,
-            type: roomData.type,
-            bounds: {
-                left: roomData.left,
-                right: roomData.right,
-                top: roomData.top,
-                bottom: roomData.bottom
-            },
-            area: roomData.area
-        });
+
         // Strict validation of room data
         if (!roomData || !roomData.id || !roomData.type ||
             typeof roomData.left !== 'number' ||
@@ -76,7 +65,6 @@ class DungeonManager {
             typeof roomData.top !== 'number' ||
             typeof roomData.bottom !== 'number') {
             console.error('Invalid room data structure:', roomData);
-            console.groupEnd();
             return null;
         }
         // Ensure room type is valid
@@ -177,16 +165,7 @@ class DungeonManager {
         this.roomTiles.set(room.id, roomTiles);
         this.rooms.set(room.id, room);
 
-        console.log(`Room ${room.id} added successfully:`, {
-            type: room.type,
-            category: room.category,
-            dimensions: {
-                width,
-                height,
-                area
-            },
-            tiles: roomTiles.size
-        });
+
 
         this.generateRoomFeatures(room);
         return room;
