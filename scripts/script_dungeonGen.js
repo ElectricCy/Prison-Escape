@@ -4,13 +4,18 @@ class DungeonGenerator {
         this.gridSize = 31; // Total size of dungeon grid
         this.gridCenter = Math.floor(this.gridSize / 2); // Center point of grid
         this.spatialGrid = {}; // Grid-based spatial partitioning
-        this.dungeonGen = new ROT.Map.Digger(31, 31, {
-            roomWidth: [2, 6], // Adjusted room sizes for better gameplay
-            roomHeight: [2, 6], // Adjusted room sizes for better gameplay            corridorLength: [2, 8], // More varied corridor lengths
-            dugPercentage: 0.4, // Increase dug percentage for more corridors
-            timeLimit: 2000, // Increase time limit for more complex generation
-            corridorDirections: [1, 2, 3, 4], // Allow all directions for corridors
-            canConnectDiagonally: false // Allow diagonal connections
+        const width = 31;
+        const height = 31;
+        this.width = width;
+        this.height = height;
+        this.dungeonGen = new ROT.Map.Digger(width, height, {
+            roomWidth: [2, 6],
+            roomHeight: [2, 6],
+            corridorLength: [2, 8],
+            dugPercentage: 0.4,
+            timeLimit: 2000,
+            corridorDirections: [1, 2, 3, 4],
+            canConnectDiagonally: false
         });
         this.dungeonManager = dungeonManager;
         this.map = {};
@@ -24,10 +29,12 @@ class DungeonGenerator {
         // Store dig callback context
         const digCallback = (x, y, value) => {
             if (!this.map[x]) {
-                this.map[x] = {};
+                this.map[x] = [];
             }
             this.map[x][y] = value;
         };
+        // Initialize map as 2D array
+        this.map = Array(this.width).fill().map(() => Array(this.height).fill(1));
         // Helper function to process room data
         const processRoom = (room) => {
             return {
@@ -55,7 +62,7 @@ class DungeonGenerator {
         do {
             console.log(`\nAttempt ${attempts + 1} of ${maxAttempts}`);
             // Clear previous map data
-            this.map = {};
+            this.map = Array(this.width).fill().map(() => Array(this.height).fill(1));
             attempts++;
             // Generate new map
             console.log('Creating new dungeon layout...');
@@ -89,9 +96,22 @@ class DungeonGenerator {
             else if (Math.random() < 0.2) roomType = 'SAFE';
             processedRoom.type = roomType;
 
-            // Add room to DungeonManager
-            this.dungeonManager.addRoom(processedRoom);
-
+            // Add room to DungeonManager with complete room data
+            const roomData = {
+                id: processedRoom.id,
+                type: roomType,
+                left: processedRoom.left,
+                right: processedRoom.right,
+                top: processedRoom.top,
+                bottom: processedRoom.bottom,
+                center: processedRoom.center,
+                width: processedRoom.width,
+                height: processedRoom.height,
+                area: processedRoom.area,
+                isConnected: processedRoom.isConnected,
+                neighbors: processedRoom.neighbors
+            };
+            this.dungeonManager.addRoom(roomData);
             return processedRoom;
         });
 
@@ -568,6 +588,7 @@ class DungeonGenerator {
     }
 }
 window.DungeonGenerator = DungeonGenerator;
+
 class Room {
     constructor(params) {
         if (!params) throw new Error('Room: params are required');

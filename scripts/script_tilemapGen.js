@@ -37,10 +37,22 @@ class TileMapGenerator {
         this.dungeonManager = params.dungeonManager;
     }
     generateMap() {
-
         // Generate dungeon layout
         const dungeonGen = new DungeonGenerator(this.dungeonManager);
         dungeonGen.generate();
+
+        // Validate dungeon generation
+        const validationResults = this.validateDungeon(dungeonGen);
+        if (!validationResults.isValid) {
+            console.error('Dungeon validation failed:', validationResults.errors);
+            // Regenerate if validation fails
+            dungeonGen.generate();
+            const retryValidation = this.validateDungeon(dungeonGen);
+            if (!retryValidation.isValid) {
+                throw new Error('Failed to generate valid dungeon after retry');
+            }
+        }
+
         // Create rooms from dungeon layout
         for (let x = 0; x < dungeonGen.width; x++) {
             for (let z = 0; z < dungeonGen.height; z++) {
@@ -115,6 +127,86 @@ class TileMapGenerator {
 
         return tileMap;
     }
+    validateDungeon(dungeonGen) {
+        console.group('Dungeon Validation');
+        const results = {
+            isValid: true,
+            errors: []
+        };
 
+        // Check if dungeon has minimal required dimensions
+        console.log('Checking dimensions:', {
+            width: dungeonGen.width,
+            height: dungeonGen.height
+        });
+        if (dungeonGen.width < 10 || dungeonGen.height < 10) {
+            results.errors.push('Dungeon dimensions too small');
+        }
+
+        // Check if map array exists and has correct dimensions
+        console.log('Checking map structure:', {
+            hasMap: !!dungeonGen.map,
+            isArray: Array.isArray(dungeonGen.map)
+        });
+        if (!dungeonGen.map || !Array.isArray(dungeonGen.map)) {
+            results.errors.push('Invalid dungeon map structure');
+        }
+        // Count room types
+        const roomCounts = {
+            STANDARD: 0,
+            SAFE: 0,
+            BOSS: 0,
+            LOOT: 0,
+            SPAWN: 0
+        };
+        console.log('Starting room validation');
+        // Validate individual rooms and connections
+        for (const [id, room] of this.dungeonManager.rooms) {
+            // Check room type
+            if (!this.dungeonManager.roomTypes.has(room.type)) {
+                results.errors.push(`Invalid room type for room ${id}: ${room.type}`);
+            }
+            // Count room types
+            if (room.type in roomCounts) {
+                roomCounts[room.type]++;
+            }
+            // Check room bounds
+            if (!room.bounds ||
+                room.bounds.left > room.bounds.right ||
+                room.bounds.top > room.bounds.bottom) {
+                results.errors.push(`Invalid room bounds for room ${id}`);
+            }
+            // Check room connections
+            if (!room.connections || !(room.connections instanceof Set)) {
+                results.errors.push(`Invalid connections for room ${id}`);
+            }
+            // Validate tiles
+            if (!room.tiles || room.tiles.size === 0) {
+                results.errors.push(`Room ${id} has no tiles`);
+            }
+        }
+        // Verify minimum room type requirements
+        console.log('Room type counts:', roomCounts);
+        if (roomCounts.SAFE === 0) results.errors.push('No SAFE rooms generated');
+        if (roomCounts.SPAWN === 0) results.errors.push('No SPAWN rooms generated');
+        if (roomCounts.STANDARD === 0) results.errors.push('No STANDARD rooms generated');
+
+        // Check total room count
+        const totalRooms = Object.values(roomCounts).reduce((a, b) => a + b, 0);
+        console.log('Total rooms:', totalRooms);
+        if (totalRooms < 5) {
+            results.errors.push(`Insufficient total rooms: ${totalRooms}`);
+        }
+
+        // Set validation status
+        results.isValid = results.errors.length === 0;
+        console.log('Validation results:', {
+            isValid: results.isValid,
+            errors: results.errors
+        });
+        console.groupEnd();
+
+        return results;
+    }
 }
 window.TileMapGenerator = TileMapGenerator

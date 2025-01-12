@@ -192,6 +192,10 @@ class Enemy {
         if (!settings) {
             throw new Error('Enemy: settings are required');
         }
+        if (!dungeonManager) {
+            throw new Error('Enemy: dungeonManager is required');
+        }
+        this.dungeonManager = dungeonManager;
         this.floorOffset = 50; // Minimal gap from floor
         this.fixedHeight = 0.5; // Fixed height above ground
         this.mixer = null;
