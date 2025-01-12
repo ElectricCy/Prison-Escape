@@ -45,101 +45,101 @@ window.LightingManager = LightingManager;
 window.MeshManager = MeshManager;
 const SCRIPT_ASSETS = [{
         name: "script_modelLoader",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_modelLoader.js"
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_modelLoader.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
     }, {
         name: "script_imageLoader",
         url: "https://play.rosebud.ai/assets/script_imageLoader.js?907f"
     }, {
         name: "script_LODManager",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_LODManager.js"
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_LODManager.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
     }, {
         name: "script_world",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_world.js"
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_world.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
     }, {
         name: "script_enemy",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_enemy.js",
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_enemy.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
     }, {
         name: "rot-js",
         url: "https://unpkg.com/rot-js",
     }, {
         name: "script_gunManager",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_gunManager.js",
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_gunManager.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
     }, {
         name: "script_gunController",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_gunController.js",
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_gunController.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
     }, {}, {
         name: "script_gunHUDContainer",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_gunHUDContainer.js",
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_gunHUDContainer.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
     }, {
         name: "script_gunLoadoutPanel",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_gunLoadoutPanel.js",
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_gunLoadoutPanel.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
     }, {
         name: "script_ammoDisplay",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_ammoDisplay.js",
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_ammoDisplay.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
     }, {
         name: "script_gunMount",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_gunMount.js",
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_gunMount.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
     }, {
         name: "script_skybox",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_skybox.js",
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_skybox.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
     }, {
         name: "script_particleEffect",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_particleEffect.js",
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_particleEffect.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
     },
     //  {
     //     name: "script_tilemapGen",
-    //     url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_tilemapGen.js",
+    //     url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_tilemapGen.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
     // },
     //  {
     //     name: "script_tilemap",
-    //     url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_tilemap.js",
+    //     url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_tilemap.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
     // },
     // {
     //     name: "script_obstacle",
-    //     url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_obstacle.js",
+    //     url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_obstacle.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
     // }, 
     // {
     //     name: "script_tile",
-    //     url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_tile.js",
+    //     url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_tile.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
     // }, 
     {
         name: "script_wall",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_wall.js",
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_wall.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
     }, {
         name: "script_crosshair",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_crosshair.js"
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_crosshair.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
     }, {
         name: "script_cameraController",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_cameraController.js"
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_cameraController.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
     }, {
         name: "script_audioManager",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_audioManager.js"
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_audioManager.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
     }, {
         name: "script_ray",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_ray.js"
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_ray.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
     }, {
         name: "script_astar",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_astar.js"
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_astar.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
     }, {
         name: "script_navmesh",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_navmesh.js"
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_navmesh.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
     }, {
         name: "script_inputHandler",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_inputHandler.js"
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_inputHandler.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
     },
     // {
     //     name: "script_dungeonGen",
-    //     url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_dungeonGen.js"
+    //     url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_dungeonGen.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
     // }, 
     {
         name: "script_player",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_player.js"
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_player.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
     }, {
         name: "script_HUD",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_HUD.js"
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_HUD.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
     }, {
         name: "script_dungeonManager",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_dungeonManager.js"
+        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_dungeonManager.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
     }
 ];
 const MODEL_ASSETS = {
