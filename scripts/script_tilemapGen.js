@@ -10,7 +10,8 @@ class TileMapGenerator {
             Tile: 'Tile class',
             Wall: 'Wall class',
             Obstacle: 'Obstacle class',
-            NavMesh: 'NavMesh class'
+            NavMesh: 'NavMesh class',
+            dungeonManager: 'DungeonManager class'
         };
         // Check for required params
         if (!params) {
@@ -33,6 +34,7 @@ class TileMapGenerator {
         this.Wall = params.Wall;
         this.Obstacle = params.Obstacle;
         this.NavMesh = params.NavMesh;
+        this.dungeonManager = params.dungeonManager;
     }
     generateMap() {
         const tileMap = new TileMap({
@@ -45,7 +47,8 @@ class TileMapGenerator {
             Tile: this.Tile,
             Wall: this.Wall,
             Obstacle: this.Obstacle,
-            NavMesh: this.NavMesh
+            NavMesh: this.NavMesh,
+            dungeonManager: this.dungeonManager
         });
 
         tileMap.createTiles();

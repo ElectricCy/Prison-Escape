@@ -17,7 +17,8 @@ class TileMap {
             Wall: 'Wall class',
             Obstacle: 'Obstacle class',
             NavMesh: 'NavMesh class',
-            physicsWorld: 'Physics world'
+            physicsWorld: 'Physics world',
+            dungeonManager: 'DungeonManager class'
         };
         // Validate all required dependencies
         Object.entries(requiredDependencies).forEach(([key, name]) => {
@@ -39,6 +40,7 @@ class TileMap {
         if (!this.physicsWorld) {
             throw new Error('TileMap: Physics world not available');
         }
+        this.dungeonManager = params.dungeonManager;
         // Initialize properties
         this.width = this.settings.tilemap.width;
         this.height = this.settings.tilemap.height;
@@ -245,8 +247,7 @@ class TileMap {
         this.obstaclesList = []; // Clear existing obstacles
         let obstaclesPlaced = 0;
         let placementAttempts = 0;
-        const dungeonManager = this.dungeonGen.dungeonManager;
-        const largeRooms = dungeonManager.getRoomsByCategory('large');
+        const largeRooms = this.dungeonManager.getRoomsByCategory('large');
         const cabinetModel = window.MODEL_ASSETS.CABINET;
         if (largeRooms) {
             for (const room of largeRooms) {

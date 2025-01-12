@@ -198,7 +198,8 @@ class World {
                 Tile: Tile,
                 Wall: Wall,
                 Obstacle: Obstacle,
-                NavMesh: NavMesh
+                NavMesh: NavMesh,
+                dungeonManager: window.GameWorld.dungeonManager
             });
             this.tilemap = tileMapGenerator.generateMap();
 
