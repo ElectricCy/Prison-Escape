@@ -26,24 +26,85 @@ class DungeonManager {
             }))
         );
     }
+    /**
+     * Room Data Structure Example:
+     * {
+     *   id: "abc123xyz",           // Unique room identifier
+     *   type: "STANDARD",          // Room type (STANDARD, SAFE, BOSS, LOOT, SPAWN)
+     *   left: 5,                   // Left boundary grid coordinate
+     *   right: 8,                  // Right boundary grid coordinate
+     *   top: 3,                    // Top boundary grid coordinate
+     *   bottom: 6,                 // Bottom boundary grid coordinate
+     *   center: {                  // Center point of the room
+     *     x: 6,                    // Center X coordinate
+     *     z: 4                     // Center Z coordinate
+     *   },
+     *   width: 4,                  // Room width in grid units
+     *   height: 4,                 // Room height in grid units
+     *   area: 16,                  // Total area of room (width * height)
+     *   isConnected: false,        // Whether room is connected to others
+     *   neighbors: []              // Array of connected room references
+     * }
+     */
     addRoom(roomData) {
-        const room = {
+        // Check if room with same boundaries already exists
+        const existingRoom = Array.from(this.rooms.values()).find(room =>
+            room.bounds.left === roomData.left &&
+            room.bounds.right === roomData.right &&
+            room.bounds.top === roomData.top &&
+            room.bounds.bottom === roomData.bottom
+        );
+        if (existingRoom) {
+            return existingRoom;
+        }
+        console.group(`Adding room ${roomData.id}`);
+        console.log('Room data:', {
             id: roomData.id,
-            name: this.generateRoomName(roomData.type),
             type: roomData.type,
-            roomNumber: this.roomIndex++,
             bounds: {
                 left: roomData.left,
                 right: roomData.right,
                 top: roomData.top,
                 bottom: roomData.bottom
             },
-            center: roomData.center,
+            area: roomData.area
+        });
+        // Strict validation of room data
+        if (!roomData || !roomData.id || !roomData.type ||
+            typeof roomData.left !== 'number' ||
+            typeof roomData.right !== 'number' ||
+            typeof roomData.top !== 'number' ||
+            typeof roomData.bottom !== 'number') {
+            console.error('Invalid room data structure:', roomData);
+            console.groupEnd();
+            return null;
+        }
+        // Ensure room type is valid
+        if (!this.roomTypes.has(roomData.type)) {
+            roomData.type = 'STANDARD'; // Default to STANDARD if invalid type
+        }
+        const room = {
+            id: roomData.id,
+            name: this.generateRoomName(roomData.type),
+            type: roomData.type,
+            roomNumber: this.roomIndex++,
+            bounds: {
+                left: Math.floor(roomData.left),
+                right: Math.floor(roomData.right),
+                top: Math.floor(roomData.top),
+                bottom: Math.floor(roomData.bottom)
+            },
+            center: roomData.center || {
+                x: Math.floor((roomData.left + roomData.right) / 2),
+                z: Math.floor((roomData.top + roomData.bottom) / 2)
+            },
             connections: new Set(),
             spawnPoints: new Map(),
             patrolPoints: [],
-            tiles: new Set(), // Store tile coordinates for this room
-            category: null
+            tiles: new Set(),
+            category: null,
+            isConnected: false,
+            neighbors: []
         };
         const width = roomData.right - roomData.left + 1;
         const height = roomData.bottom - roomData.top + 1;
@@ -55,11 +116,44 @@ class DungeonManager {
         } else {
             room.category = 'large';
         }
-        // Update grid for room tiles
+
+        // Validate dimensions
+        if (width <= 0 || height <= 0) {
+            console.error('Invalid room dimensions:', {
+                width,
+                height
+            });
+            return null;
+        }
+        room.width = width;
+        room.height = height;
+        room.area = area;
+        // Set room category based on area
+        if (area <= 12) {
+            room.category = 'small';
+        } else if (area <= 25) {
+            room.category = 'medium';
+        } else {
+            room.category = 'large';
+        }
+        // Update grid for room tiles with boundary checking
+        // Create a single room identifier for all tiles
         const roomTiles = new Set();
+        const roomId = room.id;
+
         for (let x = room.bounds.left; x <= room.bounds.right; x++) {
             for (let y = room.bounds.top; y <= room.bounds.bottom; y++) {
-                if (this.grid[x] && this.grid[x][y]) {
+                if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
+                    if (!this.grid[x]) this.grid[x] = [];
+                    if (!this.grid[x][y]) {
+                        this.grid[x][y] = {
+                            walkable: false,
+                            roomId: null,
+                            type: 'wall',
+                            objects: new Set()
+                        };
+                    }
+
                     this.grid[x][y].walkable = true;
                     this.grid[x][y].roomId = room.id;
                     this.grid[x][y].roomNumber = room.roomNumber;
@@ -79,10 +173,23 @@ class DungeonManager {
             }
         }
 
-        // Store tiles for this room
+        // Store tiles for this room and update maps
         this.roomTiles.set(room.id, roomTiles);
         this.rooms.set(room.id, room);
+
+        console.log(`Room ${room.id} added successfully:`, {
+            type: room.type,
+            category: room.category,
+            dimensions: {
+                width,
+                height,
+                area
+            },
+            tiles: roomTiles.size
+        });
+
         this.generateRoomFeatures(room);
+        return room;
     }
     generateRoomName(type) {
         const prefixes = {
@@ -108,20 +215,39 @@ class DungeonManager {
         switch (room.type) {
             case 'SAFE':
                 this.addSpawnPoint(room.id, 'respawn', room.center);
-                this.addSpawnPoint(room.id, 'health', {
-                    x: room.center.x + 2,
-                    z: room.center.z
-                });
+                const randomSafeTile = this.getRandomTileInRoom(room.id);
+                if (randomSafeTile) {
+                    this.addSpawnPoint(room.id, 'health', randomSafeTile);
+                }
                 break;
             case 'BOSS':
                 this.addSpawnPoint(room.id, 'boss', room.center);
-                this.generatePatrolPoints(room, 4); // Generate 4 patrol points
+                const patrolPoints = [];
+                for (let i = 0; i < 4; i++) {
+                    const tile = this.getRandomTileInRoom(room.id);
+                    if (tile) {
+                        patrolPoints.push(tile);
+                    }
+                }
+                room.patrolPoints = patrolPoints;
+                this.patrolPoints.set(room.id, patrolPoints);
                 break;
             case 'LOOT':
-                this.addSpawnPoint(room.id, 'loot', room.center);
+                const randomLootTile = this.getRandomTileInRoom(room.id);
+                if (randomLootTile) {
+                    this.addSpawnPoint(room.id, 'loot', randomLootTile);
+                }
                 break;
             default:
-                this.generatePatrolPoints(room, 2); // Generate 2 patrol points
+                const defaultPatrolPoints = [];
+                for (let i = 0; i < 2; i++) {
+                    const tile = this.getRandomTileInRoom(room.id);
+                    if (tile) {
+                        defaultPatrolPoints.push(tile);
+                    }
+                }
+                room.patrolPoints = defaultPatrolPoints;
+                this.patrolPoints.set(room.id, defaultPatrolPoints);
                 break;
         }
     }
@@ -310,7 +436,7 @@ class DungeonManager {
     getRandomTileInRoom(roomId) {
         const tiles = this.getRoomTiles(roomId);
         if (!tiles.length) return null;
-return tiles[Math.floor(Math.random() * tiles.length)];
+        return tiles[Math.floor(Math.random() * tiles.length)];
     }
     // Get all rooms of a specific category
     getRoomsByCategory(category) {

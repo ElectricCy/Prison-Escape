@@ -26,110 +26,201 @@ class DungeonGenerator {
     generate() {
         console.group('Dungeon Generation Process');
         console.log('Starting dungeon generation...');
-        // Store dig callback context
+
+        // Store dig callback context for map generation
         const digCallback = (x, y, value) => {
-            if (!this.map[x]) {
-                this.map[x] = [];
-            }
+            if (!this.map[x]) this.map[x] = [];
             this.map[x][y] = value;
+
+            // Mark corridor tiles as floor in DungeonManager's grid
+            if (value === 0) { // 0 indicates walkable space in ROT.js
+                if (!this.dungeonManager.grid[x]) this.dungeonManager.grid[x] = [];
+                if (!this.dungeonManager.grid[x][y]) {
+                    this.dungeonManager.grid[x][y] = {
+                        walkable: false,
+                        roomId: null,
+                        type: 'wall',
+                        objects: new Set()
+                    };
+                }
+                this.dungeonManager.grid[x][y].walkable = true;
+                this.dungeonManager.grid[x][y].type = 'floor';
+            }
         };
-        // Initialize map as 2D array
-        this.map = Array(this.width).fill().map(() => Array(this.height).fill(1));
-        // Helper function to process room data
-        const processRoom = (room) => {
+        // Helper function to process room data with boundary validation
+        const processRoom = (room, index, totalRooms) => {
+            const left = room.getLeft();
+            const right = room.getRight();
+            const top = room.getTop();
+            const bottom = room.getBottom();
+            // Validate boundaries
+            if (left >= right || top >= bottom) {
+                console.warn('Invalid room boundaries detected:', {
+                    left,
+                    right,
+                    top,
+                    bottom
+                });
+                return null;
+            }
+            const width = right - left + 1;
+            const height = bottom - top + 1;
+            const area = width * height;
+            let roomType = 'STANDARD';
+            if (index === 0) {
+                roomType = 'SPAWN';
+            } else if (index === totalRooms - 1) {
+                roomType = 'BOSS';
+            } else if (area > 30) {
+                roomType = 'LOOT';
+            } else if (Math.random() < 0.2) {
+                roomType = 'SAFE';
+            }
             return {
                 id: Math.random().toString(36).substr(2, 9),
-                left: room.getLeft(),
-                right: room.getRight(),
-                top: room.getTop(),
-                bottom: room.getBottom(),
+                type: roomType,
+                left,
+                right,
+                top,
+                bottom,
                 center: {
-                    x: Math.floor((room.getLeft() + room.getRight()) / 2),
-                    z: Math.floor((room.getTop() + room.getBottom()) / 2)
+                    x: Math.floor((left + right) / 2),
+                    z: Math.floor((top + bottom) / 2)
                 },
-                width: room.getRight() - room.getLeft() + 1,
-                height: room.getBottom() - room.getTop() + 1,
-                area: (room.getRight() - room.getLeft() + 1) * (room.getBottom() - room.getTop() + 1),
+                width,
+                height,
+                area,
                 isConnected: false,
-                neighbors: []
+                neighbors: [],
+                boundaries: {
+                    left,
+                    right,
+                    top,
+                    bottom
+                }
             };
         };
-
         // Generate map with multiple attempts if needed
         let attempts = 0;
         const maxAttempts = 5;
         console.log(`Maximum generation attempts: ${maxAttempts}`);
         do {
             console.log(`\nAttempt ${attempts + 1} of ${maxAttempts}`);
-            // Clear previous map data
             this.map = Array(this.width).fill().map(() => Array(this.height).fill(1));
             attempts++;
-            // Generate new map
+
             console.log('Creating new dungeon layout...');
             this.dungeonGen.create(digCallback.bind(this));
-            // Get rooms and corridors
+
             this.rooms = this.dungeonGen.getRooms();
             this.corridors = this.dungeonGen.getCorridors();
+
             console.log(`Generated ${this.rooms.length} rooms and ${this.corridors.length} corridors`);
-
-        } while (attempts < maxAttempts &&
-            (this.rooms.length < 8 || this.corridors.length < 10));
-        // Get final rooms and corridors
-        this.rooms = this.dungeonGen.getRooms();
-        this.corridors = this.dungeonGen.getCorridors();
-        console.log('\nFinal dungeon statistics:');
-        console.log(`- Total attempts: ${attempts}`);
-        console.log(`- Final room count: ${this.rooms.length}`);
-        console.log(`- Final corridor count: ${this.corridors.length}`);
-        console.log(`- Generation ${attempts < maxAttempts ? 'succeeded' : 'reached max attempts'}`);
-
-        console.groupEnd();
+        } while (attempts < maxAttempts && (this.rooms.length < 8 || this.corridors.length < 10));
         // Process and store room data
-        this.processedRooms = this.rooms.map((room, index) => {
-            const processedRoom = processRoom(room);
+        const processedRoomIds = new Set();
+        this.processedRooms = [];
+        this.processedRooms = this.rooms
+            .map((room, index) => {
+                const processedRoom = processRoom(room, index, this.rooms.length);
 
-            // Assign room types based on position and size
-            let roomType = 'STANDARD';
-            if (index === 0) roomType = 'SPAWN';
-            else if (index === this.rooms.length - 1) roomType = 'BOSS';
-            else if (processedRoom.area > 30) roomType = 'LOOT';
-            else if (Math.random() < 0.2) roomType = 'SAFE';
-            processedRoom.type = roomType;
+                if (!processedRoom) {
+                    console.warn('Skipping invalid room');
+                    return null;
+                }
+                const roomKey = `${processedRoom.boundaries.left},${processedRoom.boundaries.right},${processedRoom.boundaries.top},${processedRoom.boundaries.bottom}`;
 
-            // Add room to DungeonManager with complete room data
-            const roomData = {
-                id: processedRoom.id,
-                type: roomType,
-                left: processedRoom.left,
-                right: processedRoom.right,
-                top: processedRoom.top,
-                bottom: processedRoom.bottom,
-                center: processedRoom.center,
-                width: processedRoom.width,
-                height: processedRoom.height,
-                area: processedRoom.area,
-                isConnected: processedRoom.isConnected,
-                neighbors: processedRoom.neighbors
-            };
-            this.dungeonManager.addRoom(roomData);
-            return processedRoom;
-        });
+                if (processedRoomIds.has(roomKey)) {
+                    console.warn(`Skipping duplicate room: ${roomKey}`);
+                    return null;
+                }
+
+                processedRoomIds.add(roomKey);
+                // Create validated room data
+                const roomData = {
+                    id: processedRoom.id,
+                    type: processedRoom.type,
+                    left: processedRoom.boundaries.left,
+                    right: processedRoom.boundaries.right,
+                    top: processedRoom.boundaries.top,
+                    bottom: processedRoom.boundaries.bottom,
+                    center: processedRoom.center,
+                    width: processedRoom.width,
+                    height: processedRoom.height,
+                    area: processedRoom.area,
+                    isConnected: false,
+                    neighbors: [],
+                    boundaries: processedRoom.boundaries
+                };
+                const addedRoom = this.dungeonManager.addRoom(roomData);
+                if (!addedRoom) {
+                    console.warn('Failed to add room to DungeonManager');
+                }
+                return processedRoom;
+            })
+            .filter(room => room !== null);
+
+
 
         // Process room connectivity
         this.processRoomConnectivity();
 
-        console.log(`Processed ${this.processedRooms.length} rooms with connectivity`);
     }
-    // Add new methods to work with rooms
     processRoomConnectivity() {
         this.processedRooms.forEach((room, i) => {
+            const thisRoom = this.dungeonManager.rooms.get(room.id);
             this.processedRooms.forEach((otherRoom, j) => {
                 if (i !== j) {
+                    const otherDungeonRoom = this.dungeonManager.rooms.get(otherRoom.id);
+                    if (!thisRoom.doors) thisRoom.doors = new Set();
+
+                    // Check if rooms are adjacent or connected
+                    const isAdjacent = (
+                        (room.left === otherRoom.right + 1 || room.right === otherRoom.left - 1) &&
+                        (room.top <= otherRoom.bottom && room.bottom >= otherRoom.top)
+                    ) || (
+                        (room.top === otherRoom.bottom + 1 || room.bottom === otherRoom.top - 1) &&
+                        (room.left <= otherRoom.right && room.right >= otherRoom.left)
+                    );
+
+                    if (isAdjacent) {
+                        for (let x = room.bounds.left; x <= room.bounds.right; x++) {
+                            for (let z = room.bounds.top; z <= room.bounds.bottom; z++) {
+                                if (otherDungeonRoom.tiles.has({
+                                        x,
+                                        y: z
+                                    })) {
+                                    ROT.DIRS[4].forEach(tile => {
+                                        const adjX = x + tile[0];
+                                        const adjY = z + tile[1];
+                                        if (!this.dungeonManager.isWalkable(adjX, adjY) && (
+                                                adjX < room.bounds.left || adjX > room.bounds.right ||
+                                                adjY < room.bounds.top || adjY > room.bounds.bottom
+                                            )) {
+                                            const door = {
+                                                x,
+                                                z
+                                            };
+                                            thisRoom.doors.add(door);
+                                            if (!otherDungeonRoom.doors) otherDungeonRoom.doors = new Set();
+                                            otherDungeonRoom.doors.add(door);
+                                        }
+                                    });
+                                }
+                            }
+                        }
+
+                        if (!thisRoom.connections) thisRoom.connections = new Set();
+                        if (!otherDungeonRoom.connections) otherDungeonRoom.connections = new Set();
+
+                        if (!thisRoom.connections.has(otherRoom.id)) thisRoom.connections.add(otherRoom.id);
+                        if (!otherDungeonRoom.connections.has(thisRoom.id)) otherDungeonRoom.connections.add(thisRoom.id);
+                    }
                     const distance = Math.sqrt(
                         Math.pow(room.center.x - otherRoom.center.x, 2) +
                         Math.pow(room.center.z - otherRoom.center.z, 2)
                     );
-                    if (distance < 15) { // Adjust this threshold as needed
+                    if (distance < 15) {
                         room.neighbors.push({
                             id: otherRoom.id,
                             distance: distance
@@ -137,7 +228,7 @@ class DungeonGenerator {
                     }
                 }
             });
-            room.isConnected = room.neighbors.length > 0;
+            room.isConnected = room.neighbors && room.neighbors.length > 0;
         });
     }
     getRooms() {
@@ -227,7 +318,6 @@ class DungeonGenerator {
             transparent: false,
             side: THREE.FrontSide
         });
-
         const baseCeilingMaterial = new THREE.MeshStandardMaterial({
             color: 0x505050,
             roughness: 0.9,
@@ -304,35 +394,39 @@ class DungeonGenerator {
         // Process walls
         for (let y = 0; y < 50; y++) {
             for (let x = 0; x < 50; x++) {
-                if (!visited[x][y] && (this.map[x] && this.map[x][y] === 1)) {
-                    // Try horizontal first
-                    const horizontalLength = findConnectedWalls(x, y, 'horizontal');
-                    const verticalLength = findConnectedWalls(x, y, 'vertical');
-                    if (horizontalLength >= verticalLength) {
-                        // Create horizontal wall segment
-                        wallsGroup.add(createWallSegment(x, y, horizontalLength, 'horizontal'));
-                        // Mark tiles as visited
-                        for (let i = 0; i < horizontalLength; i++) {
-                            visited[x + i][y] = true;
-                        }
-                    } else {
-                        // Create vertical wall segment
-                        wallsGroup.add(createWallSegment(x, y, verticalLength, 'vertical'));
-                        // Mark tiles as visited
-                        for (let i = 0; i < verticalLength; i++) {
-                            visited[x][y + i] = true;
+                const checkTile = this.dungeonManager.getTileAt(x, y);
+                if (checkTile && checkTile.type === 'wall') {
+                    if (!visited[x][y]) {
+                        // Try horizontal first
+                        const horizontalLength = findConnectedWalls(x, y, 'horizontal');
+                        const verticalLength = findConnectedWalls(x, y, 'vertical');
+                        if (horizontalLength >= verticalLength) {
+                            // Create horizontal wall segment
+                            wallsGroup.add(createWallSegment(x, y, horizontalLength, 'horizontal'));
+                            // Mark tiles as visited
+                            for (let i = 0; i < horizontalLength; i++) {
+                                visited[x + i][y] = true;
+                            }
+                        } else {
+                            // Create vertical wall segment
+                            wallsGroup.add(createWallSegment(x, y, verticalLength, 'vertical'));
+                            // Mark tiles as visited
+                            for (let i = 0; i < verticalLength; i++) {
+                                visited[x][y + i] = true;
+                            }
                         }
                     }
                 }
             }
         }
         // Create floors with proper iteration
-        for (let x = 0; x < 50; x++) {
-            for (let y = 0; y < 50; y++) {
-                if (this.map[x] && this.map[x][y] === 0) {
+        for (let x = 0; x < this.width; x++) {
+            for (let z = 0; z < this.height; z++) {
+                const checkTile = this.dungeonManager.getTileAt(x, z);
+                if (checkTile && checkTile.type === 'floor') {
                     const floorGeometry = new THREE.BoxGeometry(5, 0.5, 5);
                     const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-                    floor.position.set((parseInt(x) - 25) * 5, 0, (parseInt(y) - 25) * 5);
+                    floor.position.set((parseInt(x) - 25) * 5, 0, (parseInt(z) - 25) * 5);
                     floor.receiveShadow = true;
                     floorsGroup.add(floor);
                 }
@@ -360,21 +454,19 @@ class DungeonGenerator {
         // Create ceiling tiles individually
         for (let x = 0; x < this.gridSize; x++) {
             for (let y = 0; y < this.gridSize; y++) {
-                if (this.map[x] && this.map[x][y] === 0) {
+                const checkTile = this.dungeonManager.getTileAt(x, y);
+                if (checkTile && checkTile.type === 'floor') {
                     const ceilingGeometry = new THREE.BoxGeometry(tileSize, 1, tileSize);
                     const ceilingTile = new THREE.Mesh(ceilingGeometry, texturedCeilingMaterial);
-
                     // Calculate world position using tilemap coordinates
                     const gridCenter = Math.floor(this.gridSize / 2);
                     const worldX = (x - gridCenter) * tileSize + (tileSize / 2);
                     const worldZ = (y - gridCenter) * tileSize + (tileSize / 2);
-
                     ceilingTile.position.set(
                         worldX,
                         ceilingHeight,
                         worldZ
                     );
-
                     ceilingTile.receiveShadow = true;
                     ceilingTile.castShadow = true;
                     ceilingGroup.add(ceilingTile);
@@ -425,61 +517,172 @@ class DungeonGenerator {
 
 
             // Place cabinets based on room size
-            const roomSize = this.dungeonManager.getRoomAtPosition(room.center.x, room.center.z)?.dimensions;
-            const numCabinets = roomSize && roomSize.width * roomSize.height > 20 ? 3 :
-                roomSize && roomSize.width * roomSize.height > 12 ? 2 : 1;
+            // Get room data directly from DungeonManager
+            const dungeonRoom = this.dungeonManager.rooms.get(room.id);
+            if (!dungeonRoom) {
+                console.warn(`Room ${room.id} not found in DungeonManager`);
+                return;
+            }
 
-            console.log(`Attempting to place ${numCabinets} cabinets in room:`, {
-                roomSize,
-                center: room.center,
-                bounds: room.bounds
+            // Calculate number of cabinets based on room area
+            const roomArea = dungeonRoom.width * dungeonRoom.height;
+            const numCabinets = roomArea > 20 ? 3 : roomArea > 12 ? 2 : 1;
+
+            console.log(`Room ${room.id}: Planning ${numCabinets} cabinets`, {
+                area: roomArea,
+                dimensions: {
+                    width: dungeonRoom.width,
+                    height: dungeonRoom.height
+                },
+                center: dungeonRoom.center,
+                bounds: dungeonRoom.bounds
             });
-            // Load cabinet model using GLTFLoader
+            // Load crate models using GLTFLoader
             try {
                 const gltfLoader = new GLTFLoader(window.LoadingManager);
+                // Randomly choose between stacked or adjacent crates
+                const crateType = Math.random() < 0.5 ? 'stacked' : 'adjacent';
+                const crateUrl = crateType === 'stacked' ?
+                    'https://play.rosebud.ai/assets/stackedCrates.glb?0gF5' :
+                    'https://play.rosebud.ai/assets/adjacentCrates.glb?3Eai';
+
                 gltfLoader.load(
-                    MODEL_ASSETS.CABINET.url,
+                    crateUrl,
                     (gltf) => {
-                        console.log('Cabinet model loaded successfully');
-                        const cabinetModel = gltf.scene;
-                        cabinetModel.traverse((child) => {
+                        console.log(`${crateType} crates model loaded successfully`);
+                        const crateModel = gltf.scene;
+                        crateModel.traverse((child) => {
                             if (child.isMesh) {
                                 child.castShadow = true;
                                 child.receiveShadow = true;
                             }
                         });
-                        const scale = MODEL_ASSETS.CABINET.scale;
-                        cabinetModel.scale.set(scale, scale, scale);
-                        // Get valid wall positions for cabinet placement
+                        const scale = 20;
+                        crateModel.scale.set(scale, scale, scale);
+                        // Get valid wall positions for crate placement
                         const wallPositions = [];
-                        const roomLeft = ((room.bounds.left - gridCenter) * APP_SETTINGS.tilemap.tileSize);
-                        const roomRight = ((room.bounds.right - gridCenter) * APP_SETTINGS.tilemap.tileSize);
-                        const roomTop = ((room.bounds.top - gridCenter) * APP_SETTINGS.tilemap.tileSize);
-                        const roomBottom = ((room.bounds.bottom - gridCenter) * APP_SETTINGS.tilemap.tileSize);
-                        // Add potential wall positions
-                        for (let x = roomLeft; x <= roomRight; x += APP_SETTINGS.tilemap.tileSize) {
-                            wallPositions.push({
-                                x: x,
-                                z: roomTop,
-                                rotation: Math.PI
-                            }); // North wall
-                            wallPositions.push({
-                                x: x,
-                                z: roomBottom,
-                                rotation: 0
-                            }); // South wall
+                        // Get door positions and create buffer zones
+                        const doorBuffer = 3; // Increased buffer size for better spacing
+                        const doorPositions = new Set();
+
+                        // Get all doors connected to this room
+                        if (dungeonRoom.doors) {
+                            dungeonRoom.doors.forEach(door => {
+                                // Use ROT.js DIRS to get all adjacent positions (8-directional)
+                                ROT.DIRS[8].forEach(dir => {
+                                    const adjX = door.x + dir[0];
+                                    const adjZ = door.z + dir[1];
+
+                                    // Add the adjacent position
+                                    doorPositions.add(`${adjX},${adjZ}`);
+
+                                    // Add extended buffer positions
+                                    for (let dx = -doorBuffer; dx <= doorBuffer; dx++) {
+                                        for (let dz = -doorBuffer; dz <= doorBuffer; dz++) {
+                                            const distance = Math.abs(dx) + Math.abs(dz);
+                                            if (distance <= doorBuffer) {
+                                                const bufferX = adjX + dx;
+                                                const bufferZ = adjZ + dz;
+                                                doorPositions.add(`${bufferX},${bufferZ}`);
+                                            }
+                                        }
+                                    }
+                                });
+
+                                // Add the door position itself
+                                doorPositions.add(`${door.x},${door.z}`);
+                            });
                         }
-                        for (let z = roomTop; z <= roomBottom; z += APP_SETTINGS.tilemap.tileSize) {
-                            wallPositions.push({
-                                x: roomLeft,
-                                z: z,
-                                rotation: -Math.PI / 2
-                            }); // West wall
-                            wallPositions.push({
-                                x: roomRight,
-                                z: z,
-                                rotation: Math.PI / 2
-                            }); // East wall
+                        // Calculate room boundaries in world coordinates using DungeonManager data
+                        const roomLeft = ((dungeonRoom.bounds.left - gridCenter) * APP_SETTINGS.tilemap.tileSize);
+                        const roomRight = ((dungeonRoom.bounds.right - gridCenter) * APP_SETTINGS.tilemap.tileSize);
+                        const roomTop = ((dungeonRoom.bounds.top - gridCenter) * APP_SETTINGS.tilemap.tileSize);
+                        const roomBottom = ((dungeonRoom.bounds.bottom - gridCenter) * APP_SETTINGS.tilemap.tileSize);
+
+                        // Add buffer from walls for better placement
+                        const wallBuffer = APP_SETTINGS.tilemap.tileSize * 0.3;
+
+                        // Function to check if position is away from doors
+                        const isAwayFromDoors = (gridX, gridZ) => {
+                            // Check the position itself
+                            if (doorPositions.has(`${gridX},${gridZ}`)) {
+                                return false;
+                            }
+
+                            // Check all adjacent positions (including diagonals)
+                            for (let dx = -1; dx <= 1; dx++) {
+                                for (let dz = -1; dz <= 1; dz++) {
+                                    if (doorPositions.has(`${gridX + dx},${gridZ + dz}`)) {
+                                        return false;
+                                    }
+                                }
+                            }
+
+                            return true;
+                        };
+                        // Add potential wall positions with buffer and validation
+                        for (let x = roomLeft + wallBuffer; x <= roomRight - wallBuffer; x += APP_SETTINGS.tilemap.tileSize) {
+                            // Check if position is valid in DungeonManager's grid
+                            const gridX = Math.floor((x / APP_SETTINGS.tilemap.tileSize) + gridCenter);
+
+                            // North wall
+                            const northGridZ = Math.floor((roomTop / APP_SETTINGS.tilemap.tileSize) + gridCenter);
+                            if (this.dungeonManager.isWalkable(gridX, northGridZ) && isAwayFromDoors(gridX, northGridZ)) {
+                                wallPositions.push({
+                                    x: x,
+                                    z: roomTop + wallBuffer,
+                                    rotation: Math.PI,
+                                    gridPos: {
+                                        x: gridX,
+                                        z: northGridZ
+                                    }
+                                });
+                            }
+
+                            // South wall
+                            const southGridZ = Math.floor((roomBottom / APP_SETTINGS.tilemap.tileSize) + gridCenter);
+                            if (this.dungeonManager.isWalkable(gridX, southGridZ) && isAwayFromDoors(gridX, southGridZ)) {
+                                wallPositions.push({
+                                    x: x,
+                                    z: roomBottom - wallBuffer,
+                                    rotation: 0,
+                                    gridPos: {
+                                        x: gridX,
+                                        z: southGridZ
+                                    }
+                                });
+                            }
+                        }
+
+                        for (let z = roomTop + wallBuffer; z <= roomBottom - wallBuffer; z += APP_SETTINGS.tilemap.tileSize) {
+                            const gridZ = Math.floor((z / APP_SETTINGS.tilemap.tileSize) + gridCenter);
+
+                            // West wall
+                            const westGridX = Math.floor((roomLeft / APP_SETTINGS.tilemap.tileSize) + gridCenter);
+                            if (this.dungeonManager.isWalkable(westGridX, gridZ) && isAwayFromDoors(westGridX, gridZ)) {
+                                wallPositions.push({
+                                    x: roomLeft + wallBuffer,
+                                    z: z,
+                                    rotation: -Math.PI / 2,
+                                    gridPos: {
+                                        x: westGridX,
+                                        z: gridZ
+                                    }
+                                });
+                            }
+                            // East wall
+                            const eastGridX = Math.floor((roomRight / APP_SETTINGS.tilemap.tileSize) + gridCenter);
+                            if (this.dungeonManager.isWalkable(eastGridX, gridZ) && isAwayFromDoors(eastGridX, gridZ)) {
+                                wallPositions.push({
+                                    x: roomRight - wallBuffer,
+                                    z: z,
+                                    rotation: Math.PI / 2,
+                                    gridPos: {
+                                        x: eastGridX,
+                                        z: gridZ
+                                    }
+                                });
+                            }
                         }
                         // Randomly select positions for cabinets
                         for (let i = 0; i < numCabinets && wallPositions.length > 0; i++) {
@@ -492,36 +695,42 @@ class DungeonGenerator {
                                     z: position.z,
                                     rotation: position.rotation
                                 });
-                                const cabinet = cabinetModel.clone();
-                                cabinet.position.set(position.x, 0, position.z);
-                                cabinet.rotation.y = position.rotation;
-                                // Add physics body for cabinet
-                                const cabinetShape = new CANNON.Box(new CANNON.Vec3(5, 10, 5));
-                                const cabinetBody = new CANNON.Body({
+                                const crate = crateModel.clone();
+                                const yOffset = crateType === 'stacked' ? 10 : 5; // Adjust based on crate type
+                                crate.position.set(position.x, yOffset, position.z);
+                                crate.rotation.y = position.rotation;
+                                // Add physics body for crates
+                                const crateSize = crateType === 'stacked' ?
+                                    new CANNON.Vec3(2, 6, 2) // Taller for stacked
+                                    :
+                                    new CANNON.Vec3(4, 2, 2); // Wider for adjacent
+                                const crateShape = new CANNON.Box(crateSize);
+                                const crateBody = new CANNON.Body({
                                     mass: 0,
-                                    position: new CANNON.Vec3(position.x, 10, position.z),
-                                    shape: cabinetShape
+                                    position: new CANNON.Vec3(position.x, yOffset, position.z),
+                                    shape: crateShape,
+                                    collisionFilterGroup: APP_SETTINGS.physics.collisionGroups.OBSTACLE,
+                                    collisionFilterMask: APP_SETTINGS.physics.collisionGroups.PLAYER |
+                                        APP_SETTINGS.physics.collisionGroups.ENEMY |
+                                        APP_SETTINGS.physics.collisionGroups.PROJECTILE
                                 });
-                                cabinetBody.collisionFilterGroup = APP_SETTINGS.physics.collisionGroups.OBSTACLE;
-                                cabinetBody.collisionFilterMask =
-                                    APP_SETTINGS.physics.collisionGroups.PLAYER |
-                                    APP_SETTINGS.physics.collisionGroups.ENEMY;
+                                crateBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), position.rotation);
+
                                 if (window.GameWorld?.physicsWorld) {
-                                    window.GameWorld.physicsWorld.addBody(cabinetBody);
-                                    console.log('Added physics body for cabinet');
+                                    window.GameWorld.physicsWorld.addBody(crateBody);
+                                    console.log(`Added physics body for ${crateType} crates`);
                                 }
-
-                                // Add cabinet to scene and track it
-                                WorldScene.add(cabinet);
-                                console.log('Added cabinet to scene');
-
-                                // Store reference to cabinet
-                                if (!window.GameWorld.cabinets) {
-                                    window.GameWorld.cabinets = [];
+                                // Add crate to scene and track it
+                                WorldScene.add(crate);
+                                console.log(`Added ${crateType} crates to scene`);
+                                // Store reference to crate
+                                if (!window.GameWorld.crates) {
+                                    window.GameWorld.crates = [];
                                 }
-                                window.GameWorld.cabinets.push({
-                                    mesh: cabinet,
-                                    body: cabinetBody
+                                window.GameWorld.crates.push({
+                                    type: crateType,
+                                    mesh: crate,
+                                    body: crateBody
                                 });
                             } catch (error) {
                                 console.error('Failed to place cabinet:', error);

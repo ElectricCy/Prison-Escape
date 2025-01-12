@@ -54,24 +54,12 @@ class TileMapGenerator {
         }
 
         // Create rooms from dungeon layout
-        for (let x = 0; x < dungeonGen.width; x++) {
-            for (let z = 0; z < dungeonGen.height; z++) {
-                if (dungeonGen.map[x][z] === 0) { // Floor tile
-                    this.dungeonManager.addRoom({
-                        id: `room_${x}_${z}`,
-                        type: 'STANDARD',
-                        left: x,
-                        right: x,
-                        top: z,
-                        bottom: z,
-                        center: {
-                            x,
-                            z
-                        }
-                    });
-                }
-            }
+        // The rooms are already registered by the DungeonGenerator
+        // Verify rooms were properly registered
+        if (this.dungeonManager.rooms.size === 0) {
+            throw new Error('No rooms were registered in DungeonManager');
         }
+        console.log(`Using ${this.dungeonManager.rooms.size} pre-registered rooms`);
         // Now create tilemap with initialized dungeon manager
         const tileMap = new TileMap({
             THREE: this.THREE,
@@ -128,6 +116,9 @@ class TileMapGenerator {
         return tileMap;
     }
     validateDungeon(dungeonGen) {
+        if (!dungeonGen || !this.dungeonManager) {
+            throw new Error('DungeonGenerator or DungeonManager not initialized');
+        }
         console.group('Dungeon Validation');
         const results = {
             isValid: true,
