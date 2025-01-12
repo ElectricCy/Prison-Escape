@@ -1,3 +1,4 @@
+
 class WorldTime {
     constructor() {
         this.currentTime = 0; // Time in seconds
@@ -52,9 +53,10 @@ class WorldTime {
 }
 window.WorldTime = WorldTime;
 class World {
-    constructor() {
+    constructor(params = {}) {
         window.WorldScene = new THREE.Scene();
         this.lodManager = new LODManager();
+        this.dungeonManager = params.dungeonManager;
         this.skybox = new SkyBox({
             THREE: THREE,
             GLTFLoader: GLTFLoader,
@@ -68,6 +70,8 @@ class World {
         this.physicsWorld = new CANNON.World();
         this.playerPhysMaterial = new CANNON.Material('player');
         this.groundPhysMaterial = new CANNON.Material('ground');
+
+
         // Create contact material between player and ground
         const playerGroundContact = new CANNON.ContactMaterial(
             this.playerPhysMaterial,
@@ -199,7 +203,7 @@ class World {
                 Wall: Wall,
                 Obstacle: Obstacle,
                 NavMesh: NavMesh,
-                dungeonManager: window.GameWorld.dungeonManager
+                dungeonManager: this.dungeonManager
             });
             this.tilemap = tileMapGenerator.generateMap();
 

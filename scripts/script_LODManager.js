@@ -1,10 +1,11 @@
 class LODManager {
-    constructor() {
+    constructor(dungeonManager) {
         this.lodObjects = new Map(); // Store LOD objects
         this.enabled = APP_SETTINGS.lod.enabled;
         this.distances = {
             ...APP_SETTINGS.lod.distances
         }; // Clone distances for dynamic updates
+        this.dungeonManager = dungeonManager;
         this.levels = APP_SETTINGS.lod.levels;
         this.currentRoom = null;
         this.visibleObjects = new Set(); // Track currently visible objects
@@ -71,10 +72,10 @@ class LODManager {
     updateLODs(camera) {
         if (!this.enabled) return;
         // Get player's current room from DungeonManager
-        if (window.Player && window.DungeonManager) {
+        if (window.Player && this.dungeonManager) {
             const playerPos = window.Player.getPosition();
             const gridPos = window.GameWorld.tilemap.worldToGridPosition(playerPos.x, playerPos.z);
-            this.currentRoom = window.DungeonManager.getRoomAtPosition(gridPos.x, gridPos.z);
+            this.currentRoom = this.dungeonManager.getRoomAtPosition(gridPos.x, gridPos.z);
         }
         // Update visible objects based on current room and connected rooms
         this.updateVisibility();
@@ -89,14 +90,14 @@ class LODManager {
         });
     }
     updateVisibility() {
-        if (!this.currentRoom || !window.DungeonManager) return;
+        if (!this.currentRoom || !this.dungeonManager) return;
         this.visibleObjects.clear();
         // Add objects in current room
         this.addRoomObjectsToVisible(this.currentRoom);
         // Add objects in connected rooms
         if (this.currentRoom.connections) {
             this.currentRoom.connections.forEach(connectedRoomId => {
-                const connectedRoom = window.DungeonManager.rooms.get(connectedRoomId);
+                const connectedRoom = this.dungeonManager.rooms.get(connectedRoomId);
                 if (connectedRoom) {
                     this.addRoomObjectsToVisible(connectedRoom);
                 }

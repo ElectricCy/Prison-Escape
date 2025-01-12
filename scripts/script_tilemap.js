@@ -1,9 +1,9 @@
-
 class TileMap {
     constructor(params) {
         // Initialize storage arrays
         this.obstaclesList = [];
         this.wallsList = [];
+        this.dungeonGen = params.dungeonGen;
         // Validate core dependencies
         if (!params) {
             throw new Error('TileMap: params object is required');
@@ -18,7 +18,8 @@ class TileMap {
             Obstacle: 'Obstacle class',
             NavMesh: 'NavMesh class',
             physicsWorld: 'Physics world',
-            dungeonManager: 'DungeonManager class'
+            dungeonManager: 'DungeonManager class',
+            dungeonGen: 'DungeonGenerator instance'
         };
         // Validate all required dependencies
         Object.entries(requiredDependencies).forEach(([key, name]) => {
@@ -49,7 +50,6 @@ class TileMap {
         this.mapMesh = new this.THREE.Group();
         this.occupiedPositions = new Set();
         this.navMesh = null;
-        this.dungeonManager = null;
     }
     createTiles() {
         if (!this.Materials || !this.THREE) {
@@ -241,9 +241,10 @@ class TileMap {
     }
 
     placeObstacles() {
-        this.dungeonGen = new DungeonGenerator();
-        this.dungeonManager = this.dungeonGen.dungeonManager;
-        this.dungeonGen.generate();
+        if (!this.dungeonManager) {
+            console.error('DungeonManager not initialized');
+            return;
+        }
         this.obstaclesList = []; // Clear existing obstacles
         let obstaclesPlaced = 0;
         let placementAttempts = 0;
@@ -251,12 +252,12 @@ class TileMap {
         const cabinetModel = window.MODEL_ASSETS.CABINET;
         if (largeRooms) {
             for (const room of largeRooms) {
-                const roomTiles = dungeonManager.getRoomTiles(room.id);
+                const roomTiles = this.dungeonManager.getRoomTiles(room.id);
                 const wallTiles = new Set();
                 for (const tile of roomTiles) {
-                    const neighbors = dungeonManager.getNeighbors(tile.x, tile.y);
+                    const neighbors = this.dungeonManager.getNeighbors(tile.x, tile.y);
                     for (const neighbor of neighbors) {
-                        if (!dungeonManager.isWalkable(neighbor.x, neighbor.z)) {
+                        if (!this.dungeonManager.isWalkable(neighbor.x, neighbor.z)) {
                             wallTiles.add(`${neighbor.x},${neighbor.z}`);
                         }
                     }
@@ -354,3 +355,4 @@ class TileMap {
         });
     }
 }
+window.TileMap = TileMap;

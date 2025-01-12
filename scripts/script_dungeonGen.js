@@ -1,6 +1,5 @@
-
 class DungeonGenerator {
-    constructor() {
+    constructor(dungeonManager) {
         this.gridCellSize = 20; // Size of each grid cell in world units (matching APP_SETTINGS.tilemap.tileSize)
         this.gridSize = 31; // Total size of dungeon grid
         this.gridCenter = Math.floor(this.gridSize / 2); // Center point of grid
@@ -13,6 +12,7 @@ class DungeonGenerator {
             corridorDirections: [1, 2, 3, 4], // Allow all directions for corridors
             canConnectDiagonally: false // Allow diagonal connections
         });
+        this.dungeonManager = dungeonManager;
         this.map = {};
         this.rooms = [];
         this.corridors = [];
@@ -21,14 +21,6 @@ class DungeonGenerator {
     generate() {
         console.group('Dungeon Generation Process');
         console.log('Starting dungeon generation...');
-
-        // Initialize DungeonManager
-        window.DungeonManager = new DungeonManager();
-        window.DungeonManager.initialize({
-            width: this.gridSize,
-            height: this.gridSize,
-            tileSize: this.gridCellSize
-        });
         // Store dig callback context
         const digCallback = (x, y, value) => {
             if (!this.map[x]) {
@@ -98,7 +90,7 @@ class DungeonGenerator {
             processedRoom.type = roomType;
 
             // Add room to DungeonManager
-            window.DungeonManager.addRoom(processedRoom);
+            this.dungeonManager.addRoom(processedRoom);
 
             return processedRoom;
         });
@@ -413,7 +405,7 @@ class DungeonGenerator {
 
 
             // Place cabinets based on room size
-            const roomSize = window.DungeonManager.getRoomAtPosition(room.center.x, room.center.z)?.dimensions;
+            const roomSize = this.dungeonManager.getRoomAtPosition(room.center.x, room.center.z)?.dimensions;
             const numCabinets = roomSize && roomSize.width * roomSize.height > 20 ? 3 :
                 roomSize && roomSize.width * roomSize.height > 12 ? 2 : 1;
 
@@ -547,7 +539,7 @@ class DungeonGenerator {
                     fixture.scale.set(scale, scale, scale);
 
                     // Position fixture at room center using DungeonManager's room data
-                    const roomCenter = window.DungeonManager.getRoomAtPosition(room.center.x, room.center.z);
+                    const roomCenter = this.dungeonManager.getRoomAtPosition(room.center.x, room.center.z);
                     const centerPos = {
                         x: ((room.center.x - gridCenter) * APP_SETTINGS.tilemap.tileSize),
                         z: ((room.center.z - gridCenter) * APP_SETTINGS.tilemap.tileSize)

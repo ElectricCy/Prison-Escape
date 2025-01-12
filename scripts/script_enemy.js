@@ -188,7 +188,7 @@ class EnemyAnimationController {
 }
 window.EnemyAnimationController = EnemyAnimationController;
 class Enemy {
-    constructor(scene, settings) {
+    constructor(scene, settings, dungeonManager) {
         if (!settings) {
             throw new Error('Enemy: settings are required');
         }
@@ -211,6 +211,7 @@ class Enemy {
             color: 0x0000ff,
             linewidth: 2
         });
+        this.dungeonManager = dungeonManager;
         // Room patrol system
         this.currentRoom = null;
         this.patrolRooms = [];
@@ -664,7 +665,7 @@ class Enemy {
         }
     }
     generatePatrolPoints() {
-        const dungeonManager = window.DungeonManager;
+        const dungeonManager = this.dungeonManager;
         if (!dungeonManager) return;
         const currentPos = this.getPosition();
         const gridPos = window.GameWorld.tilemap.worldToGridPosition(currentPos.x, currentPos.z);
@@ -1131,7 +1132,7 @@ class Enemy {
         if (this.currentState !== this.states.CHASE && this.currentState !== this.states.PATROL) return;
         const currentTime = Date.now();
         if (currentTime - this.pathUpdateTime < this.pathUpdateInterval) return;
-        const dungeonManager = window.DungeonManager;
+        const dungeonManager = this.dungeonManager;
         if (!dungeonManager) return;
         const enemyPos = this.getPosition();
         const enemyGridPos = window.GameWorld.tilemap.worldToGridPosition(enemyPos.x, enemyPos.z);
@@ -1171,7 +1172,7 @@ class Enemy {
         }
     }
     isPositionValid(x, y) {
-        const dungeonManager = window.DungeonManager;
+        const dungeonManager = this.dungeonManager;
         return dungeonManager && dungeonManager.isWalkable(x, y);
     }
     handleHit(damage) {

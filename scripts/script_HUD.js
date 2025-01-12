@@ -229,6 +229,7 @@ class HUD {
             Joystick: null,
             CameraJoystick: null,
         };
+        this.dungeonManager = params.dungeonManager;
     }
     init() {
         try {
@@ -289,13 +290,13 @@ class HUD {
     }
     update() {
         try {
-            if (this.isVisible && window.Player && window.GameWorld?.tilemap && window.DungeonManager) {
+            if (this.isVisible && window.Player && window.GameWorld?.tilemap && this.dungeonManager) {
                 const playerPos = window.Player.getPosition();
                 // Convert world position to grid position
                 const gridPos = window.GameWorld.tilemap.worldToGridPosition(playerPos.x, playerPos.z);
 
                 // Get room at player's position
-                const room = window.DungeonManager.getRoomAtPosition(gridPos.x, gridPos.z);
+                const room = this.dungeonManager.getRoomAtPosition(gridPos.x, gridPos.z);
 
                 if (room) {
                     this.roomDisplay.textContent = `${room.name}`;

@@ -37,6 +37,30 @@ class TileMapGenerator {
         this.dungeonManager = params.dungeonManager;
     }
     generateMap() {
+
+        // Generate dungeon layout
+        const dungeonGen = new DungeonGenerator(this.dungeonManager);
+        dungeonGen.generate();
+        // Create rooms from dungeon layout
+        for (let x = 0; x < dungeonGen.width; x++) {
+            for (let z = 0; z < dungeonGen.height; z++) {
+                if (dungeonGen.map[x][z] === 0) { // Floor tile
+                    this.dungeonManager.addRoom({
+                        id: `room_${x}_${z}`,
+                        type: 'STANDARD',
+                        left: x,
+                        right: x,
+                        top: z,
+                        bottom: z,
+                        center: {
+                            x,
+                            z
+                        }
+                    });
+                }
+            }
+        }
+        // Now create tilemap with initialized dungeon manager
         const tileMap = new TileMap({
             THREE: this.THREE,
             CANNON: this.CANNON,
@@ -48,7 +72,8 @@ class TileMapGenerator {
             Wall: this.Wall,
             Obstacle: this.Obstacle,
             NavMesh: this.NavMesh,
-            dungeonManager: this.dungeonManager
+            dungeonManager: this.dungeonManager,
+            dungeonGen: dungeonGen
         });
 
         tileMap.createTiles();
@@ -92,3 +117,4 @@ class TileMapGenerator {
     }
 
 }
+window.TileMapGenerator = TileMapGenerator
