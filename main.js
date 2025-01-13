@@ -43,103 +43,105 @@ window.BasicSkyShader = BasicSkyShader;
 window.MaterialManager = MaterialManager;
 window.LightingManager = LightingManager;
 window.MeshManager = MeshManager;
+// const SCRIPT_BASEURL = "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main"
+// const SCRIPT_BASEURL = "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@feature/room-categorization"
+const SCRIPT_BASEURL2 = "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@latestv01"
 const SCRIPT_ASSETS = [{
         name: "script_modelLoader",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_modelLoader.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
+        url: `${SCRIPT_BASEURL2}/scripts/script_modelLoader.js`
     }, {
         name: "script_imageLoader",
         url: "https://play.rosebud.ai/assets/script_imageLoader.js?907f"
     }, {
         name: "script_LODManager",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_LODManager.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
+        url: `${SCRIPT_BASEURL2}/scripts/script_LODManager.js`
     }, {
         name: "script_world",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_world.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
+        url: `${SCRIPT_BASEURL2}/scripts/script_world.js`
     }, {
         name: "script_enemy",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_enemy.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
+        url: `${SCRIPT_BASEURL2}/scripts/script_enemy.js`,
     }, {
         name: "rot-js",
         url: "https://unpkg.com/rot-js",
     }, {
         name: "script_gunManager",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_gunManager.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
+        url: `${SCRIPT_BASEURL2}/scripts/script_gunManager.js`,
     }, {
         name: "script_gunController",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_gunController.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
+        url: `${SCRIPT_BASEURL2}/scripts/script_gunController.js`,
     }, {}, {
         name: "script_gunHUDContainer",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_gunHUDContainer.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
+        url: `${SCRIPT_BASEURL2}/scripts/script_gunHUDContainer.js`,
     }, {
         name: "script_gunLoadoutPanel",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_gunLoadoutPanel.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
+        url: `${SCRIPT_BASEURL2}/scripts/script_gunLoadoutPanel.js`,
     }, {
         name: "script_ammoDisplay",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_ammoDisplay.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
+        url: `${SCRIPT_BASEURL2}/scripts/script_ammoDisplay.js`,
     }, {
         name: "script_gunMount",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_gunMount.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
+        url: `${SCRIPT_BASEURL2}/scripts/script_gunMount.js`,
     }, {
         name: "script_skybox",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_skybox.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
+        url: `${SCRIPT_BASEURL2}/scripts/script_skybox.js`,
     }, {
         name: "script_particleEffect",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_particleEffect.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
-    },
-    //  {
-    //     name: "script_tilemapGen",
-    //     url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_tilemapGen.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
-    // },
-    //  {
-    //     name: "script_tilemap",
-    //     url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_tilemap.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
-    // },
-    // {
-    //     name: "script_obstacle",
-    //     url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_obstacle.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
-    // }, 
-    // {
-    //     name: "script_tile",
-    //     url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_tile.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
-    // }, 
-    {
+        url: `${SCRIPT_BASEURL2}/scripts/script_particleEffect.js`,
+    }, {
+        name: "script_tilemapGen",
+        url: `${SCRIPT_BASEURL2}/scripts/script_tilemapGen.js`,
+    }, {
+        name: "script_tilemap",
+        url: `${SCRIPT_BASEURL2}/scripts/script_tilemap.js`,
+    }, {
+        name: "script_obstacle",
+        url: `${SCRIPT_BASEURL2}/scripts/script_obstacle.js`,
+    }, {
+        name: "script_tile",
+        url: `${SCRIPT_BASEURL2}/scripts/script_tile.js`,
+    }, {
         name: "script_wall",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_wall.js?v=124b99175beea51e432e8b8c1217a943ff9b960a",
+        url: `${SCRIPT_BASEURL2}/scripts/script_wall.js`,
     }, {
         name: "script_crosshair",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_crosshair.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
+        url: `${SCRIPT_BASEURL2}/scripts/script_crosshair.js`
     }, {
         name: "script_cameraController",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_cameraController.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
+        url: `${SCRIPT_BASEURL2}/scripts/script_cameraController.js`
     }, {
         name: "script_audioManager",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_audioManager.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
+        url: `${SCRIPT_BASEURL2}/scripts/script_audioManager.js`
     }, {
         name: "script_ray",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_ray.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
+        url: `${SCRIPT_BASEURL2}/scripts/script_ray.js`
     }, {
         name: "script_astar",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_astar.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
+        url: `${SCRIPT_BASEURL2}/scripts/script_astar.js`
     }, {
         name: "script_navmesh",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_navmesh.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
+        url: `${SCRIPT_BASEURL2}/scripts/script_navmesh.js`
     }, {
         name: "script_inputHandler",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_inputHandler.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
+        url: `${SCRIPT_BASEURL2}/scripts/script_inputHandler.js`
     },
-    // {
-    //     name: "script_dungeonGen",
-    //     url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_dungeonGen.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
-    // }, 
+
+    {
+        name: "script_dungeonGen",
+        url: `${SCRIPT_BASEURL2}/scripts/script_dungeonGen.js`
+    },
+
+    {
+        name: "script_dungeonManager",
+        url: `${SCRIPT_BASEURL2}/scripts/script_dungeonManager.js`
+    },
+
     {
         name: "script_player",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_player.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
+        url: `${SCRIPT_BASEURL2}/scripts/script_player.js`
     }, {
         name: "script_HUD",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_HUD.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
-    }, {
-        name: "script_dungeonManager",
-        url: "https://cdn.jsdelivr.net/gh/ElectricCy/Prison-Escape@main/scripts/script_dungeonManager.js?v=124b99175beea51e432e8b8c1217a943ff9b960a"
+        url: `${SCRIPT_BASEURL2}/scripts/script_HUD.js`
     }
 ];
 const MODEL_ASSETS = {
@@ -147,6 +149,21 @@ const MODEL_ASSETS = {
         url: 'https://play.rosebud.ai/assets/bloodstainedMetalCabinets.glb?gOxU',
         type: 'glb',
         scale: 1.0
+    },
+    ADJACENT_CRATES: {
+        url: 'https://play.rosebud.ai/assets/adjacentCrates.glb?3Eai',
+        type: 'glb',
+        scale: 15
+    },
+    STACKED_CRATES: {
+        url: 'https://play.rosebud.ai/assets/stackedCrates.glb?0gF5',
+        type: 'glb',
+        scale: 15
+    },
+    CRT_TV: {
+        url: 'https://play.rosebud.ai/assets/CRTTV.glb?S1rV',
+        type: 'glb',
+        scale: 15
     },
     SMG: {
         url: 'https://play.rosebud.ai/assets/mdl_mac-10.glb?i3GD',
@@ -894,6 +911,16 @@ class PostProcessing {
 
 
 
+
+
+
+
+
+
+
+
+
+
 class App {
     constructor() {
         this.createRenderDivs();
@@ -902,6 +929,7 @@ class App {
         this.spriteSheet = null;
         this.deltaTime = 0;
         this.enemyCamera = null;
+        this.dungeonManager = null;
         this.initAsync();
     }
     loadScript(scriptAsset) {
@@ -1007,7 +1035,20 @@ class App {
         if (typeof World === 'undefined') {
             throw new Error('World class not loaded');
         }
-        window.GameWorld = new World();
+
+        // Initialize DungeonManager first
+        this.dungeonManager = new DungeonManager();
+        this.dungeonManager.initialize({
+            width: APP_SETTINGS.tilemap.width,
+            height: APP_SETTINGS.tilemap.height,
+            tileSize: APP_SETTINGS.tilemap.tileSize
+        });
+
+        // Create World with dungeonManager
+        window.GameWorld = new World({
+            settings: APP_SETTINGS,
+            dungeonManager: this.dungeonManager
+        });
         window.AudioManager = new AudioManager({
             THREE: THREE,
             camera: MainCamera,
@@ -1128,7 +1169,8 @@ class App {
                 GunLoadoutPanel: GunLoadoutPanel,
                 GunHUDContainer: GunHUDContainer,
                 Player: window.Player,
-                settings: APP_SETTINGS
+                settings: APP_SETTINGS,
+                dungeonManager: this.dungeonManager
             });
             window.HUD.init();
             window.HUD.hide(); // Initially hide the HUD
@@ -1200,20 +1242,62 @@ class App {
             LoadingManager: window.LoadingManager
         });
         try {
-            const dungeonManager = window.DungeonManager;
-            if (!dungeonManager) {
+            if (!this.dungeonManager) {
                 throw new Error('DungeonManager not initialized');
             }
             // Get player's current room
             const playerPos = window.Player.getPosition();
             const playerGridPos = window.GameWorld.tilemap.worldToGridPosition(playerPos.x, playerPos.z);
-            const playerRoom = dungeonManager.getRoomAtPosition(playerGridPos.x, playerGridPos.z);
+            const playerRoom = this.dungeonManager.getRoomAtPosition(playerGridPos.x, playerGridPos.z);
             // Get all available rooms
-            const availableRooms = Array.from(dungeonManager.rooms.values()).filter(room =>
-                playerRoom ? room.id !== playerRoom.id : true
-            );
+            // Filter rooms based on multiple criteria
+            console.log('Total rooms:', this.dungeonManager.rooms.size);
+            const availableRooms = Array.from(this.dungeonManager.rooms.values()).filter(room => {
+                console.log('Checking room:', room.id, {
+                    type: room.type,
+                    category: room.category,
+                    connections: room.connections.size,
+                    isPlayerRoom: playerRoom ? room.id === playerRoom.id : false
+                });
+                // More lenient filtering conditions
+                if (playerRoom && room.id === playerRoom.id) {
+                    console.log('Rejected: Player room');
+                    return false;
+                }
+                // Allow all room types except SAFE
+                if (room.type === 'SAFE') {
+                    console.log('Rejected: Safe room');
+                    return false;
+                }
+                // Accept all room sizes for now
+                return true;
+            });
+
+            console.log('Available rooms after filtering:', availableRooms.length);
+
+            // Fallback logic if no suitable rooms found
             if (availableRooms.length === 0) {
-                throw new Error('No available rooms for enemy spawn');
+                console.warn('No ideal spawn rooms available, attempting emergency fallback');
+                // Emergency fallback: use ANY room except the current player room
+                const fallbackRooms = Array.from(this.dungeonManager.rooms.values())
+                    .filter(room => {
+                        const isValid = playerRoom ? room.id !== playerRoom.id : true;
+                        console.log('Fallback room check:', room.id, isValid);
+                        return isValid;
+                    });
+                console.log('Emergency fallback rooms found:', fallbackRooms.length);
+
+                if (fallbackRooms.length === 0) {
+                    // Last resort: use ANY room including player room
+                    const lastResortRooms = Array.from(this.dungeonManager.rooms.values());
+                    if (lastResortRooms.length === 0) {
+                        throw new Error('No rooms available at all for enemy spawn');
+                    }
+                    console.log('Using last resort rooms:', lastResortRooms.length);
+                    availableRooms.push(...lastResortRooms);
+                } else {
+                    availableRooms.push(...fallbackRooms);
+                }
             }
             // Select a random room
             const spawnRoom = availableRooms[Math.floor(Math.random() * availableRooms.length)];
@@ -1273,10 +1357,13 @@ class App {
             };
 
             const preloadedAssets = await enemyLoader.preloadEnemyAssets(enemySettings);
-            window.Enemy = new Enemy(WorldScene, {
-                ...enemySettings,
-                preloadedAssets
-            });
+            window.Enemy = new Enemy(
+                WorldScene, {
+                    ...enemySettings,
+                    preloadedAssets
+                },
+                this.dungeonManager
+            );
             // Initialize the enemy with preloaded assets
             await window.Enemy.initializeWithPreloadedAssets();
 
@@ -1453,7 +1540,7 @@ class App {
     findAvailableSpawnPosition() {
         console.group('Finding Available Spawn Position');
 
-        if (!window.GameWorld || !window.GameWorld.tilemap || !window.DungeonManager) {
+        if (!window.GameWorld || !window.GameWorld.tilemap || !this.dungeonManager) {
             console.error('Required systems not initialized');
             console.groupEnd();
             return {
@@ -1464,7 +1551,7 @@ class App {
         }
         try {
             // Get spawn point from DungeonManager
-            const spawnPoint = window.DungeonManager.getRandomSpawnPoint('respawn');
+            const spawnPoint = this.dungeonManager.getRandomSpawnPoint('respawn');
 
             if (!spawnPoint) {
                 throw new Error('No spawn points available');
@@ -1514,8 +1601,6 @@ class App {
         }
     }
 }
-
-
 
 async function startGame() {
     try {
