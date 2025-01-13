@@ -184,12 +184,9 @@ class DungeonGenerator {
                     );
 
                     if (isAdjacent) {
-                        for (let x = room.bounds.left; x <= room.bounds.right; x++) {
-                            for (let z = room.bounds.top; z <= room.bounds.bottom; z++) {
-                                if (otherDungeonRoom.tiles.has({
-                                        x,
-                                        y: z
-                                    })) {
+                        for (let x = room.boundaries.left; x <= room.boundaries.right; x++) {
+                            for (let z = room.boundaries.top; z <= room.boundaries.bottom; z++) {
+                                if (otherDungeonRoom.tiles.has(`${x},${z}`)) {
                                     ROT.DIRS[4].forEach(tile => {
                                         const adjX = x + tile[0];
                                         const adjY = z + tile[1];
@@ -620,37 +617,46 @@ class DungeonGenerator {
 
                             return true;
                         };
-                        // Add potential wall positions with buffer and validation
-                        for (let x = roomLeft + wallBuffer; x <= roomRight - wallBuffer; x += APP_SETTINGS.tilemap.tileSize) {
-                            // Check if position is valid in DungeonManager's grid
-                            const gridX = Math.floor((x / APP_SETTINGS.tilemap.tileSize) + gridCenter);
+                        // Get valid wall positions using ROT.js room data
+                        const rotRoom = this.rooms.find(r => 
+                            r.getLeft() === Math.floor((roomLeft / APP_SETTINGS.tilemap.tileSize) + gridCenter) &&
+                            r.getTop() === Math.floor((roomTop / APP_SETTINGS.tilemap.tileSize) + gridCenter));
+                        
+                        if (rotRoom) {
+                            // Get wall positions within the ROT.js room
+                            for (let x = rotRoom.getLeft(); x <= rotRoom.getRight(); x++) {
+                                for (let z = rotRoom.getTop(); z <= rotRoom.getBottom(); z++) {
+                                    // Check if current position is a wall tile
+                                    if (this.map[x]?.[z] === 1) {
+                                        // Check if adjacent to floor within room
+                                        const hasAdjacentFloor = ROT.DIRS[4].some(dir => {
+                                            const adjX = x + dir[0];
+                                            const adjZ = z + dir[1];
+                                            return this.map[adjX]?.[adjZ] === 0 &&
+                                                adjX >= rotRoom.getLeft() && adjX <= rotRoom.getRight() &&
+                                                adjZ >= rotRoom.getTop() && adjZ <= rotRoom.getBottom();
+                                        });
 
-                            // North wall
-                            const northGridZ = Math.floor((roomTop / APP_SETTINGS.tilemap.tileSize) + gridCenter);
-                            if (this.dungeonManager.isWalkable(gridX, northGridZ) && isAwayFromDoors(gridX, northGridZ)) {
-                                wallPositions.push({
-                                    x: x,
-                                    z: roomTop + wallBuffer,
-                                    rotation: Math.PI,
-                                    gridPos: {
-                                        x: gridX,
-                                        z: northGridZ
-                                    }
-                                });
-                            }
+                                        if (hasAdjacentFloor && isAwayFromDoors(x, z)) {
+                                            const worldX = (x - gridCenter) * APP_SETTINGS.tilemap.tileSize;
+                                            const worldZ = (z - gridCenter) * APP_SETTINGS.tilemap.tileSize;
+                                            
+                                            // Determine wall orientation based on adjacent floor tile
+                                            let rotation = 0;
+                                            if (this.map[x + 1]?.[z] === 0) rotation = Math.PI;
+                                            else if (this.map[x - 1]?.[z] === 0) rotation = 0;
+                                            else if (this.map[x]?.[z + 1] === 0) rotation = -Math.PI / 2;
+                                            else if (this.map[x]?.[z - 1] === 0) rotation = Math.PI / 2;
 
-                            // South wall
-                            const southGridZ = Math.floor((roomBottom / APP_SETTINGS.tilemap.tileSize) + gridCenter);
-                            if (this.dungeonManager.isWalkable(gridX, southGridZ) && isAwayFromDoors(gridX, southGridZ)) {
-                                wallPositions.push({
-                                    x: x,
-                                    z: roomBottom - wallBuffer,
-                                    rotation: 0,
-                                    gridPos: {
-                                        x: gridX,
-                                        z: southGridZ
+                                            wallPositions.push({
+                                                x: worldX,
+                                                z: worldZ,
+                                                rotation: rotation,
+                                                gridPos: { x, z }
+                                            });
+                                        }
                                     }
-                                });
+                                }
                             }
                         }
 
