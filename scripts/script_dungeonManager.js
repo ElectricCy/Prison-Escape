@@ -432,4 +432,5 @@ class DungeonManager {
         return this.roomIndex - 1;
     }
 }
+
 window.DungeonManager = DungeonManager
