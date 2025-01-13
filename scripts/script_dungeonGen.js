@@ -169,6 +169,23 @@ class DungeonGenerator {
     processRoomConnectivity() {
         this.processedRooms.forEach((room, i) => {
             const thisRoom = this.dungeonManager.rooms.get(room.id);
+            // Get ROT.js room and collect door positions
+            const rotRoom = this.rooms.find(r =>
+                r.getLeft() === room.boundaries.left &&
+                r.getTop() === room.boundaries.top &&
+                r.getRight() === room.boundaries.right &&
+                r.getBottom() === room.boundaries.bottom
+            );
+            if (rotRoom) {
+                if (!thisRoom.doors) thisRoom.doors = new Set();
+                // Collect door positions from ROT.js room
+                rotRoom.getDoors((x, y) => {
+                    thisRoom.doors.add({
+                        x,
+                        z: y
+                    }); // Note: using z instead of y for consistency
+                });
+            }
             this.processedRooms.forEach((otherRoom, j) => {
                 if (i !== j) {
                     const otherDungeonRoom = this.dungeonManager.rooms.get(otherRoom.id);
@@ -599,29 +616,28 @@ class DungeonGenerator {
                         // Add buffer from walls for better placement
                         const wallBuffer = APP_SETTINGS.tilemap.tileSize * 0.3;
 
-                        // Function to check if position is away from doors
+                        // Function to check if position is away from doors using ROT.js functionality
                         const isAwayFromDoors = (gridX, gridZ) => {
-                            // Check the position itself
-                            if (doorPositions.has(`${gridX},${gridZ}`)) {
-                                return false;
-                            }
+                            // Check if the position itself is a door
+                            const isDoor = Array.from(dungeonRoom.doors).some(door =>
+                                door.x === gridX && door.z === gridZ
+                            );
+                            if (isDoor) return false;
 
-                            // Check all adjacent positions (including diagonals)
-                            for (let dx = -1; dx <= 1; dx++) {
-                                for (let dz = -1; dz <= 1; dz++) {
-                                    if (doorPositions.has(`${gridX + dx},${gridZ + dz}`)) {
-                                        return false;
-                                    }
-                                }
-                            }
-
-                            return true;
+                            // Check adjacent positions using ROT.DIRS[8]
+                            return !ROT.DIRS[8].some(dir => {
+                                const adjX = gridX + dir[0];
+                                const adjZ = gridZ + dir[1];
+                                return Array.from(dungeonRoom.doors).some(door =>
+                                    door.x === adjX && door.z === adjZ
+                                );
+                            });
                         };
                         // Get valid wall positions using ROT.js room data
-                        const rotRoom = this.rooms.find(r => 
+                        const rotRoom = this.rooms.find(r =>
                             r.getLeft() === Math.floor((roomLeft / APP_SETTINGS.tilemap.tileSize) + gridCenter) &&
                             r.getTop() === Math.floor((roomTop / APP_SETTINGS.tilemap.tileSize) + gridCenter));
-                        
+
                         if (rotRoom) {
                             // Get wall positions within the ROT.js room
                             for (let x = rotRoom.getLeft(); x <= rotRoom.getRight(); x++) {
@@ -640,7 +656,7 @@ class DungeonGenerator {
                                         if (hasAdjacentFloor && isAwayFromDoors(x, z)) {
                                             const worldX = (x - gridCenter) * APP_SETTINGS.tilemap.tileSize;
                                             const worldZ = (z - gridCenter) * APP_SETTINGS.tilemap.tileSize;
-                                            
+
                                             // Determine wall orientation based on adjacent floor tile
                                             let rotation = 0;
                                             if (this.map[x + 1]?.[z] === 0) rotation = Math.PI;
@@ -652,7 +668,10 @@ class DungeonGenerator {
                                                 x: worldX,
                                                 z: worldZ,
                                                 rotation: rotation,
-                                                gridPos: { x, z }
+                                                gridPos: {
+                                                    x,
+                                                    z
+                                                }
                                             });
                                         }
                                     }
@@ -665,6 +684,7 @@ class DungeonGenerator {
 
                             // West wall
                             const westGridX = Math.floor((roomLeft / APP_SETTINGS.tilemap.tileSize) + gridCenter);
+                            // Check if position is walkable and not near doors using ROT.js door positions
                             if (this.dungeonManager.isWalkable(westGridX, gridZ) && isAwayFromDoors(westGridX, gridZ)) {
                                 wallPositions.push({
                                     x: roomLeft + wallBuffer,
