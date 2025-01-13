@@ -83,8 +83,15 @@ class DungeonManager {
                 bottom: Math.floor(roomData.bottom)
             },
             center: roomData.center || {
+                // Calculate exact center in grid coordinates
+                x: roomData.left + Math.floor((roomData.right - roomData.left) / 2),
+                z: roomData.top + Math.floor((roomData.bottom - roomData.top) / 2)
+            },
+            center: {
+                // Use ROT.js grid coordinates directly
                 x: Math.floor((roomData.left + roomData.right) / 2),
-                z: Math.floor((roomData.top + roomData.bottom) / 2)
+                z: Math.floor((roomData.top + roomData.bottom) / 2),
+                y: 0
             },
             connections: new Set(),
             spawnPoints: new Map(),
@@ -132,7 +139,24 @@ class DungeonManager {
         for (let x = room.bounds.left; x <= room.bounds.right; x++) {
             for (let y = room.bounds.top; y <= room.bounds.bottom; y++) {
                 if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
+                    // Initialize grid if needed
                     if (!this.grid[x]) this.grid[x] = [];
+                    // Initialize center if not set
+                    if (!room.center) {
+                        // Calculate exact center in grid coordinates
+                        const centerX = room.bounds.left + Math.floor((room.bounds.right - room.bounds.left) / 2);
+                        const centerZ = room.bounds.top + Math.floor((room.bounds.bottom - room.bounds.top) / 2);
+                        room.center = {
+                            x: centerX,
+                            z: centerZ
+                        };
+                        // Calculate world coordinates directly from boundaries
+                        room.worldCenter = {
+                            x: (centerX - Math.floor(this.width / 2)) * this.tileSize,
+                            z: (centerZ - Math.floor(this.height / 2)) * this.tileSize,
+                            y: 0
+                        };
+                    }
                     if (!this.grid[x][y]) {
                         this.grid[x][y] = {
                             walkable: false,

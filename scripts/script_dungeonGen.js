@@ -376,13 +376,53 @@ class DungeonGenerator {
             }
             return length;
         };
+        // Helper function to check if a wall is needed at this position
+        const isWallNeeded = (x, y) => {
+            // Skip if out of bounds
+            if (x < 0 || x >= this.width || y < 0 || y >= this.height) return false;
+
+            // Check if current position is a wall
+            if (this.map[x]?.[y] !== 1) return false;
+
+            // Check all adjacent tiles (including diagonals)
+            const adjacent = [{
+                x: -1,
+                y: 0
+            }, {
+                x: 1,
+                y: 0
+            }, {
+                x: 0,
+                y: -1
+            }, {
+                x: 0,
+                y: 1
+            }, {
+                x: -1,
+                y: -1
+            }, {
+                x: -1,
+                y: 1
+            }, {
+                x: 1,
+                y: -1
+            }, {
+                x: 1,
+                y: 1
+            }];
+
+            // Wall is needed if any adjacent tile is a floor (0)
+            return adjacent.some(dir => {
+                const checkX = x + dir.x;
+                const checkY = y + dir.y;
+                return this.map[checkX]?.[checkY] === 0;
+            });
+        };
+
         // Helper function to create a wall segment with proper geometry
         const createWallSegment = (startX, startY, length, direction) => {
-            // Check surrounding tiles to determine wall shape
-            const hasNorth = startY > 0 && this.map[startX]?.[startY - 1] === 1;
-            const hasSouth = startY < 49 && this.map[startX]?.[startY + 1] === 1;
-            const hasWest = startX > 0 && this.map[startX - 1]?.[startY] === 1;
-            const hasEast = startX < 49 && this.map[startX + 1]?.[startY] === 1;
+            // Only create wall segments that are needed
+            if (!isWallNeeded(startX, startY)) return null;
             // Create geometry based on connections
             const wallGeometry = new THREE.BoxGeometry(
                 direction === 'horizontal' ? length * 5 : 5,
@@ -404,29 +444,35 @@ class DungeonGenerator {
             return wallGroup;
         };
         // Create visited map to track processed tiles
-        const visited = Array(50).fill().map(() => Array(50).fill(false));
+        const visited = Array(this.width).fill().map(() => Array(this.height).fill(false));
         // Process walls
-        for (let y = 0; y < 50; y++) {
-            for (let x = 0; x < 50; x++) {
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
                 const checkTile = this.dungeonManager.getTileAt(x, y);
-                if (checkTile && checkTile.type === 'wall') {
+                if (checkTile && checkTile.type === 'wall' && isWallNeeded(x, y)) {
                     if (!visited[x][y]) {
                         // Try horizontal first
                         const horizontalLength = findConnectedWalls(x, y, 'horizontal');
                         const verticalLength = findConnectedWalls(x, y, 'vertical');
                         if (horizontalLength >= verticalLength) {
                             // Create horizontal wall segment
-                            wallsGroup.add(createWallSegment(x, y, horizontalLength, 'horizontal'));
-                            // Mark tiles as visited
-                            for (let i = 0; i < horizontalLength; i++) {
-                                visited[x + i][y] = true;
+                            const wallSegment = createWallSegment(x, y, horizontalLength, 'horizontal');
+                            if (wallSegment) {
+                                wallsGroup.add(wallSegment);
+                                // Mark tiles as visited
+                                for (let i = 0; i < horizontalLength; i++) {
+                                    visited[x + i][y] = true;
+                                }
                             }
                         } else {
                             // Create vertical wall segment
-                            wallsGroup.add(createWallSegment(x, y, verticalLength, 'vertical'));
-                            // Mark tiles as visited
-                            for (let i = 0; i < verticalLength; i++) {
-                                visited[x][y + i] = true;
+                            const wallSegment = createWallSegment(x, y, verticalLength, 'vertical');
+                            if (wallSegment) {
+                                wallsGroup.add(wallSegment);
+                                // Mark tiles as visited
+                                for (let i = 0; i < verticalLength; i++) {
+                                    visited[x][y + i] = true;
+                                }
                             }
                         }
                     }
@@ -461,9 +507,10 @@ class DungeonGenerator {
         // Create ceiling material with texture
         const texturedCeilingMaterial = new THREE.MeshStandardMaterial({
             map: ceilingTexture,
-            roughness: 0.9,
-            metalness: 0.1,
-            side: THREE.FrontSide
+            roughness: 0.95,
+            metalness: 0.05,
+            side: THREE.FrontSide,
+            envMapIntensity: 0.2
         });
         // Create ceiling tiles individually
         for (let x = 0; x < this.gridSize; x++) {
@@ -493,18 +540,42 @@ class DungeonGenerator {
 
         // Process each room to add lights
         this.processedRooms.forEach(async room => {
-            // Calculate center position for the light
-            const gridCenter = Math.floor(this.gridSize / 2);
-            const worldX = ((room.center.x - gridCenter) * APP_SETTINGS.tilemap.tileSize);
-            const worldZ = ((room.center.z - gridCenter) * APP_SETTINGS.tilemap.tileSize);
+            // Get ROT.js room data for accurate positioning
+            const rotRoom = this.rooms.find(r =>
+                r.getLeft() === room.boundaries.left &&
+                r.getTop() === room.boundaries.top &&
+                r.getRight() === room.boundaries.right &&
+                r.getBottom() === room.boundaries.bottom
+            );
 
-            // Create point light
-            const light = new THREE.PointLight(0xFFFFAA, 0.8, 150);
-            light.position.set(worldX, 18, worldZ); // Just below ceiling
+            if (!rotRoom) {
+                console.warn('Could not find ROT.js room data for lighting');
+                return;
+            }
+
+            // Get room data from DungeonManager
+            const dungeonRoom = this.dungeonManager.rooms.get(room.id);
+            if (!dungeonRoom) {
+                console.warn(`Could not find room ${room.id} in DungeonManager for lighting.`);
+                return;
+            }
+
+
+            // Calculate world position using tilemap coordinates
+            const gridCenter = Math.floor(this.gridSize / 2);
+            const tileSize = APP_SETTINGS.tilemap.tileSize;
+            const worldX = (dungeonRoom.center.x - gridCenter) * tileSize + (tileSize / 2);
+            const worldZ = (dungeonRoom.center.z - gridCenter) * tileSize + (tileSize / 2);
+            // Create point light with corrected position and adjusted height
+            const light = new THREE.SpotLight(0xFFFFAA, 1.2, 60, Math.PI / 3, 0.5, 1.5);
+            light.position.set(worldX, ceilingHeight - 5, worldZ);
+            light.target.position.set(worldX, 0, worldZ);
             light.castShadow = true;
             light.shadow.mapSize.width = 512;
             light.shadow.mapSize.height = 512;
             light.shadow.radius = 2;
+            light.shadow.bias = -0.001;
+            roomLights.add(light.target);
             // Define the desired height extension
             const additionalHeight = 20; // Adjust this value as needed
 
@@ -512,35 +583,37 @@ class DungeonGenerator {
             const newHeight = 30 + additionalHeight;
 
             // Create the light cone mesh with the new height
-            const coneGeometry = new THREE.ConeGeometry(20, newHeight, 32, 1, true, 0, Math.PI * 2);
+            const coneGeometry = new THREE.ConeGeometry(12, newHeight, 32, 1, true, 0, Math.PI * 2);
             const coneMaterial = new THREE.MeshBasicMaterial({
                 color: 0xFFFFAA,
                 transparent: true,
-                opacity: 0.1,
+                opacity: 0.01,
                 side: THREE.DoubleSide,
                 blending: THREE.AdditiveBlending,
-                depthWrite: false
+                depthWrite: false,
+                fog: false
             });
             const lightCone = new THREE.Mesh(coneGeometry, coneMaterial);
 
-            // Adjust the position to account for the increased height
-            lightCone.position.set(worldX, 25 - additionalHeight / 2, worldZ);
+            // Position light cone using tilemap coordinates
+            lightCone.position.set(worldX, ceilingHeight - 5 - additionalHeight / 2, worldZ);
 
             // Add the cone to the scene
             roomLights.add(lightCone);
 
 
             // Place cabinets based on room size
-            // Get room data directly from DungeonManager
-            const dungeonRoom = this.dungeonManager.rooms.get(room.id);
+            // Room data is already available from earlier in the code
             if (!dungeonRoom) {
                 console.warn(`Room ${room.id} not found in DungeonManager`);
                 return;
             }
-
             // Calculate number of cabinets based on room area
             const roomArea = dungeonRoom.width * dungeonRoom.height;
-            const numCabinets = roomArea > 20 ? 3 : roomArea > 12 ? 2 : 1;
+            // More crates based on room size with randomization
+            const baseCrates = roomArea > 30 ? 8 : roomArea > 20 ? 6 : roomArea > 12 ? 4 : 2;
+            const randomExtra = Math.floor(Math.random() * 3); // 0-2 extra crates
+            const numCabinets = baseCrates + randomExtra;
 
             console.log(`Room ${room.id}: Planning ${numCabinets} cabinets`, {
                 area: roomArea,
@@ -565,18 +638,23 @@ class DungeonGenerator {
                     (gltf) => {
                         console.log(`${crateType} crates model loaded successfully`);
                         const crateModel = gltf.scene;
+                        // Store the first mesh's material for reuse
+                        let crateMaterial = null;
                         crateModel.traverse((child) => {
                             if (child.isMesh) {
+                                if (!crateMaterial) {
+                                    crateMaterial = child.material.clone();
+                                }
                                 child.castShadow = true;
                                 child.receiveShadow = true;
                             }
                         });
                         const scale = 20;
                         crateModel.scale.set(scale, scale, scale);
-                        // Get valid wall positions for crate placement
-                        const wallPositions = [];
+                        // Get valid floor positions for crate placement
+                        const floorPositions = [];
                         // Get door positions and create buffer zones
-                        const doorBuffer = 3; // Increased buffer size for better spacing
+                        const doorBuffer = 2; // Buffer size around doors
                         const doorPositions = new Set();
 
                         // Get all doors connected to this room
@@ -639,32 +717,20 @@ class DungeonGenerator {
                             r.getTop() === Math.floor((roomTop / APP_SETTINGS.tilemap.tileSize) + gridCenter));
 
                         if (rotRoom) {
-                            // Get wall positions within the ROT.js room
+                            // Get floor positions within the ROT.js room
                             for (let x = rotRoom.getLeft(); x <= rotRoom.getRight(); x++) {
                                 for (let z = rotRoom.getTop(); z <= rotRoom.getBottom(); z++) {
-                                    // Check if current position is a wall tile
-                                    if (this.map[x]?.[z] === 1) {
-                                        // Check if adjacent to floor within room
-                                        const hasAdjacentFloor = ROT.DIRS[4].some(dir => {
-                                            const adjX = x + dir[0];
-                                            const adjZ = z + dir[1];
-                                            return this.map[adjX]?.[adjZ] === 0 &&
-                                                adjX >= rotRoom.getLeft() && adjX <= rotRoom.getRight() &&
-                                                adjZ >= rotRoom.getTop() && adjZ <= rotRoom.getBottom();
-                                        });
-
-                                        if (hasAdjacentFloor && isAwayFromDoors(x, z)) {
+                                    // Check if current position is a floor tile
+                                    if (this.map[x]?.[z] === 0) { // 0 represents floor in ROT.js
+                                        // Check if position is away from doors and walls
+                                        if (isAwayFromDoors(x, z)) {
                                             const worldX = (x - gridCenter) * APP_SETTINGS.tilemap.tileSize;
                                             const worldZ = (z - gridCenter) * APP_SETTINGS.tilemap.tileSize;
 
-                                            // Determine wall orientation based on adjacent floor tile
-                                            let rotation = 0;
-                                            if (this.map[x + 1]?.[z] === 0) rotation = Math.PI;
-                                            else if (this.map[x - 1]?.[z] === 0) rotation = 0;
-                                            else if (this.map[x]?.[z + 1] === 0) rotation = -Math.PI / 2;
-                                            else if (this.map[x]?.[z - 1] === 0) rotation = Math.PI / 2;
+                                            // Random rotation for more variety
+                                            const rotation = Math.random() * Math.PI * 2;
 
-                                            wallPositions.push({
+                                            floorPositions.push({
                                                 x: worldX,
                                                 z: worldZ,
                                                 rotation: rotation,
@@ -678,43 +744,16 @@ class DungeonGenerator {
                                 }
                             }
                         }
-
-                        for (let z = roomTop + wallBuffer; z <= roomBottom - wallBuffer; z += APP_SETTINGS.tilemap.tileSize) {
-                            const gridZ = Math.floor((z / APP_SETTINGS.tilemap.tileSize) + gridCenter);
-
-                            // West wall
-                            const westGridX = Math.floor((roomLeft / APP_SETTINGS.tilemap.tileSize) + gridCenter);
-                            // Check if position is walkable and not near doors using ROT.js door positions
-                            if (this.dungeonManager.isWalkable(westGridX, gridZ) && isAwayFromDoors(westGridX, gridZ)) {
-                                wallPositions.push({
-                                    x: roomLeft + wallBuffer,
-                                    z: z,
-                                    rotation: -Math.PI / 2,
-                                    gridPos: {
-                                        x: westGridX,
-                                        z: gridZ
-                                    }
-                                });
-                            }
-                            // East wall
-                            const eastGridX = Math.floor((roomRight / APP_SETTINGS.tilemap.tileSize) + gridCenter);
-                            if (this.dungeonManager.isWalkable(eastGridX, gridZ) && isAwayFromDoors(eastGridX, gridZ)) {
-                                wallPositions.push({
-                                    x: roomRight - wallBuffer,
-                                    z: z,
-                                    rotation: Math.PI / 2,
-                                    gridPos: {
-                                        x: eastGridX,
-                                        z: gridZ
-                                    }
-                                });
-                            }
-                        }
                         // Randomly select positions for cabinets
-                        for (let i = 0; i < numCabinets && wallPositions.length > 0; i++) {
+                        // Shuffle floor positions for random distribution
+                        floorPositions.sort(() => Math.random() - 0.5);
+
+                        // Try to place crates
+                        let placedCrates = 0;
+                        for (let i = 0; i < numCabinets && floorPositions.length > 0 && placedCrates < floorPositions.length; i++) {
                             try {
-                                const randomIndex = Math.floor(Math.random() * wallPositions.length);
-                                const position = wallPositions.splice(randomIndex, 1)[0];
+                                const randomIndex = Math.floor(Math.random() * floorPositions.length);
+                                const position = floorPositions.splice(randomIndex, 1)[0];
 
                                 console.log(`Placing cabinet ${i + 1}/${numCabinets} at:`, {
                                     x: position.x,
@@ -722,14 +761,20 @@ class DungeonGenerator {
                                     rotation: position.rotation
                                 });
                                 const crate = crateModel.clone();
+                                // Apply the stored material to all meshes in the clone
+                                crate.traverse((child) => {
+                                    if (child.isMesh && crateMaterial) {
+                                        child.material = crateMaterial;
+                                    }
+                                });
                                 const yOffset = crateType === 'stacked' ? 10 : 5; // Adjust based on crate type
                                 crate.position.set(position.x, yOffset, position.z);
                                 crate.rotation.y = position.rotation;
                                 // Add physics body for crates
                                 const crateSize = crateType === 'stacked' ?
-                                    new CANNON.Vec3(2, 6, 2) // Taller for stacked
+                                    new CANNON.Vec3(5, 10, 5) // Taller for stacked
                                     :
-                                    new CANNON.Vec3(4, 2, 2); // Wider for adjacent
+                                    new CANNON.Vec3(10, 5, 5); // Wider for adjacent
                                 const crateShape = new CANNON.Box(crateSize);
                                 const crateBody = new CANNON.Body({
                                     mass: 0,
@@ -737,7 +782,6 @@ class DungeonGenerator {
                                     shape: crateShape,
                                     collisionFilterGroup: APP_SETTINGS.physics.collisionGroups.OBSTACLE,
                                     collisionFilterMask: APP_SETTINGS.physics.collisionGroups.PLAYER |
-                                        APP_SETTINGS.physics.collisionGroups.ENEMY |
                                         APP_SETTINGS.physics.collisionGroups.PROJECTILE
                                 });
                                 crateBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), position.rotation);
@@ -788,18 +832,25 @@ class DungeonGenerator {
                             });
                         });
                     }
-
                     // Apply scale from model assets
                     const scale = MODEL_ASSETS.LIGHT_FIXTURE.scale || 1;
                     fixture.scale.set(scale, scale, scale);
+                    // Get room data from DungeonManager
+                    const dungeonRoom = this.dungeonManager.rooms.get(room.id);
+                    if (dungeonRoom) {
+                        // Use ROT.js grid coordinates for positioning
+                        const gridCenter = Math.floor(this.gridSize / 2);
+                        const tileSize = APP_SETTINGS.tilemap.tileSize;
 
-                    // Position fixture at room center using DungeonManager's room data
-                    const roomCenter = this.dungeonManager.getRoomAtPosition(room.center.x, room.center.z);
-                    const centerPos = {
-                        x: ((room.center.x - gridCenter) * APP_SETTINGS.tilemap.tileSize),
-                        z: ((room.center.z - gridCenter) * APP_SETTINGS.tilemap.tileSize)
-                    };
-                    fixture.position.set(centerPos.x, ceilingHeight - 4, centerPos.z);
+                        // Calculate world position from ROT.js grid coordinates
+                        const worldX = (dungeonRoom.center.x - gridCenter) * tileSize + (tileSize / 2);
+                        const worldZ = (dungeonRoom.center.z - gridCenter) * tileSize + (tileSize / 2);
+                        fixture.position.set(
+                            worldX,
+                            ceilingHeight+4,
+                            worldZ
+                        );
+                    }
                     // Maintain existing rotation
                     // If needed, you can adjust specific axes
                     fixture.rotation.set(0, 0, 0);
@@ -823,288 +874,3 @@ class DungeonGenerator {
     }
 }
 window.DungeonGenerator = DungeonGenerator;
-
-class Room {
-    constructor(params) {
-        if (!params) throw new Error('Room: params are required');
-        // Validate required dependencies
-        const required = ['THREE', 'tileMap', 'settings'];
-        required.forEach(prop => {
-            if (!params[prop]) throw new Error(`Room: ${prop} is required`);
-        });
-        // Connection tracking
-        this.connections = new Map(); // Map of connected rooms and their shared doors
-        this.doors = new Set(); // Set of door positions
-        this.connectedRooms = new Set(); // Set of connected room references
-        // Store dependencies
-        this.THREE = params.THREE;
-        this.tileMap = params.tileMap;
-        this.settings = params.settings;
-        // Core properties
-        this.id = params.id || Math.random().toString(36).substr(2, 9);
-        this.type = params.type || 'STANDARD';
-        this.name = params.name || `Room ${this.id}`;
-        this.label = null; // THREE.Sprite for room label
-        // Tile and position data
-        this.tiles = new Set(); // Store tile references
-        this.boundaries = {
-            left: params.left,
-            right: params.right,
-            top: params.top,
-            bottom: params.bottom
-        };
-        // Calculate dimensions
-        this.dimensions = {
-            width: this.boundaries.right - this.boundaries.left + 1,
-            height: this.boundaries.bottom - this.boundaries.top + 1
-        };
-        // Calculate positions
-        this.positions = {
-            grid: {
-                center: {
-                    x: Math.floor((this.boundaries.left + this.boundaries.right) / 2),
-                    z: Math.floor((this.boundaries.top + this.boundaries.bottom) / 2)
-                }
-            },
-            world: this.calculateWorldPosition()
-        };
-        // Room features
-        this.features = new Map(); // Map of feature name to feature object
-        this.entities = new Set(); // Set of entities in the room
-        this.initialized = false;
-        // Initialize room
-        this.init();
-    }
-    // Room connection methods
-    addConnection(room, doorPosition) {
-        if (!room || !(room instanceof Room)) {
-            throw new Error('Invalid room provided for connection');
-        }
-        // Add door position
-        this.doors.add(doorPosition);
-        // Add connected room
-        this.connectedRooms.add(room);
-        // Store connection details
-        this.connections.set(room.id, {
-            room: room,
-            doorPosition: doorPosition
-        });
-        // Add reciprocal connection if it doesn't exist
-        if (!room.isConnectedTo(this)) {
-            room.addConnection(this, doorPosition);
-        }
-    }
-    removeConnection(room) {
-        if (!room || !this.connections.has(room.id)) return;
-        // Get connection details
-        const connection = this.connections.get(room.id);
-        // Remove door position
-        this.doors.delete(connection.doorPosition);
-        // Remove from connected rooms
-        this.connectedRooms.delete(room);
-        // Remove connection
-        this.connections.delete(room.id);
-        // Remove reciprocal connection
-        if (room.isConnectedTo(this)) {
-            room.removeConnection(this);
-        }
-    }
-    isConnectedTo(room) {
-        return this.connections.has(room.id);
-    }
-    getDoors() {
-        // Return array of door positions without requiring a callback
-        return Array.from(this.doors);
-    }
-    // Add helper method to check if room has doors
-    hasDoors() {
-        return this.doors.size > 0;
-    }
-    getConnectedRooms() {
-        return Array.from(this.connectedRooms);
-    }
-    getConnectionDetails(room) {
-        return this.connections.get(room.id);
-    }
-    init() {
-        this.collectTiles();
-        this.createRoomLabel();
-        this.initializeRoomType();
-    }
-    calculateWorldPosition() {
-        const gridCenter = Math.floor(this.tileMap.width / 2);
-        const tileSize = this.tileMap.tileSize;
-
-        return {
-            center: {
-                x: (this.positions.grid.center.x - gridCenter) * tileSize,
-                y: 0,
-                z: (this.positions.grid.center.z - gridCenter) * tileSize
-            },
-            bounds: {
-                min: {
-                    x: (this.boundaries.left - gridCenter) * tileSize,
-                    z: (this.boundaries.top - gridCenter) * tileSize
-                },
-                max: {
-                    x: (this.boundaries.right - gridCenter) * tileSize,
-                    z: (this.boundaries.bottom - gridCenter) * tileSize
-                }
-            }
-        };
-    }
-    collectTiles() {
-        // Get all tiles within room boundaries
-        for (let x = this.boundaries.left; x <= this.boundaries.right; x++) {
-            for (let z = this.boundaries.top; z <= this.boundaries.bottom; z++) {
-                const tile = this.tileMap.getTileAt(x, z);
-                if (tile) {
-                    this.tiles.add(tile);
-                }
-            }
-        }
-    }
-    createRoomLabel() {
-        // Create text sprite for room label
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.width = 256;
-        canvas.height = 256;
-        // Configure text style
-        context.font = 'Bold 36px Arial';
-        context.fillStyle = 'white';
-        context.textAlign = 'center';
-        context.textBaseline = 'middle';
-        // Draw room name and type
-        context.fillText(`${this.name}`, 128, 108);
-        context.font = '24px Arial';
-        context.fillText(`(${this.type})`, 128, 148);
-        // Create sprite
-        const texture = new this.THREE.CanvasTexture(canvas);
-        const spriteMaterial = new this.THREE.SpriteMaterial({
-            map: texture
-        });
-        this.label = new this.THREE.Sprite(spriteMaterial);
-        // Position label above room center
-        this.label.position.set(
-            this.positions.world.center.x,
-            20, // Height above ground
-            this.positions.world.center.z
-        );
-        this.label.scale.set(10, 10, 1);
-    }
-    initializeRoomType() {
-        if (this.initialized) return;
-        switch (this.type) {
-            case 'SAFE':
-                this.initializeSafeRoom();
-                break;
-            case 'BOSS':
-                this.initializeBossRoom();
-                break;
-            default:
-                this.initializeStandardRoom();
-        }
-        this.initialized = true;
-    }
-    initializeSafeRoom() {
-        // Add safe room specific features with positions
-        this.features.set('RESPAWN_POINT', {
-            position: this.positions.world.center,
-            active: true
-        });
-
-        this.features.set('HEALTH_STATION', {
-            position: {
-                x: this.positions.world.center.x + 5,
-                y: 0,
-                z: this.positions.world.center.z
-            },
-            active: true
-        });
-        // Update room appearance for safe room
-        this.tiles.forEach(tile => {
-            if (tile.mesh) {
-                tile.mesh.material.color.setHex(0x4444ff);
-            }
-        });
-    }
-    initializeStandardRoom() {
-        if (Math.random() < 0.3) {
-            this.features.set('LOOT_SPAWN', {
-                position: this.positions.world.center,
-                active: true,
-                lootType: 'RANDOM'
-            });
-        }
-    }
-    initializeBossRoom() {
-        this.features.set('BOSS_SPAWN', {
-            position: this.positions.world.center,
-            active: true,
-            bossType: 'RANDOM'
-        });
-        this.features.set('LOOT_SPAWN', {
-            position: {
-                x: this.positions.world.center.x,
-                y: 0,
-                z: this.positions.world.center.z + 5
-            },
-            active: false, // Activated after boss defeat
-            lootType: 'BOSS'
-        });
-        // Update room appearance for boss room
-        this.tiles.forEach(tile => {
-            if (tile.mesh) {
-                tile.mesh.material.color.setHex(0xff4444);
-            }
-        });
-    }
-    // Utility methods
-    addFeature(featureName, featureData) {
-        this.features.set(featureName, featureData);
-    }
-    // Check if room has valid connections
-    hasValidConnections() {
-        return this.connections.size > 0 &&
-            Array.from(this.connections.values()).every(conn =>
-                conn.room && conn.doorPosition);
-    }
-    // Get number of connections
-    getConnectionCount() {
-        return this.connections.size;
-    }
-    removeFeature(featureName) {
-        this.features.delete(featureName);
-    }
-    addEntity(entity) {
-        this.entities.add(entity);
-    }
-    removeEntity(entity) {
-        this.entities.delete(entity);
-    }
-    showLabel() {
-        if (this.label && !this.label.parent) {
-            this.tileMap.scene.add(this.label);
-        }
-    }
-    hideLabel() {
-        if (this.label && this.label.parent) {
-            this.tileMap.scene.remove(this.label);
-        }
-    }
-    // Get room data
-    getRoomData() {
-        return {
-            id: this.id,
-            type: this.type,
-            name: this.name,
-            position: this.positions,
-            dimensions: this.dimensions,
-            features: Array.from(this.features.entries()),
-            entities: Array.from(this.entities),
-            tileCount: this.tiles.size
-        };
-    }
-}
-window.Room = Room;
